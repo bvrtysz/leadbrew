@@ -1,0 +1,19 @@
+{
+  "name": "lead-gen-server",
+  "version": "1.0.0",
+  "description": "Çay ve kahve lead generation backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.13",
+    "sql.js": "^1.14.1",
+    "uuid": "^10.0.0"
+  }
+}

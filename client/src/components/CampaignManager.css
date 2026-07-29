@@ -1,0 +1,52 @@
+.campaign-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.campaign-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.campaign-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+
+.campaign-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.camp-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.text-cyan { color: var(--accent-secondary); }
+.text-green { color: var(--accent-success); }
+.text-amber { color: var(--accent-warning); }
+
+.border-t {
+  border-top: 1px solid var(--glass-border);
+}
+
+.icon-btn {
+  padding: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .campaign-grid {
+    grid-template-columns: 1fr;
+  }
+}
