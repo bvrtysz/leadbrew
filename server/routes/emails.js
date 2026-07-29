@@ -107,7 +107,7 @@ router.post('/bulk-send', async (req, res) => {
       }
     }
     
-    res.json({ message: \`\${results.length} e-posta başarıyla gönderildi (Simülasyon)\`, results });
+    res.json({ message: `${results.length} e-posta başarıyla gönderildi (Simülasyon)`, results });
   } catch (error) {
     res.status(500).json({ error: 'Sunucu hatası' });
   }

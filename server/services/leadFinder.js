@@ -15,7 +15,7 @@ const industries = {
 function generateRandomName() {
   const first = firstNames[Math.floor(Math.random() * firstNames.length)];
   const last = lastNames[Math.floor(Math.random() * lastNames.length)];
-  return \`\${first} \${last}\`;
+  return `${first} ${last}`;
 }
 
 function generateCompany(industry) {

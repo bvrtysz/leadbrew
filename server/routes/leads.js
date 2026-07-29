@@ -132,7 +132,7 @@ router.post('/search', async (req, res) => {
       }
     })();
     
-    res.json({ message: \`\${addedLeads.length} yeni lead bulundu ve eklendi\`, leads: addedLeads });
+    res.json({ message: `${addedLeads.length} yeni lead bulundu ve eklendi`, leads: addedLeads });
   } catch (error) {
     console.error('Lead araması yapılırken hata:', error);
     res.status(500).json({ error: 'Sunucu hatası' });

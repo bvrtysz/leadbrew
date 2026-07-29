@@ -48,7 +48,7 @@ class FollowUpService {
           const nextType = this.getNextType(prevEmail.type, prevEmail.max_follow_ups);
           if (!nextType) continue; // Max follow-up ulaşıldı
           
-          console.log(\`[\${nextType}] \${prevEmail.company} için follow-up hazırlanıyor...\`);
+          console.log(`[${nextType}] ${prevEmail.company} için follow-up hazırlanıyor...`);
           
           const lead = {
             id: prevEmail.lead_id,

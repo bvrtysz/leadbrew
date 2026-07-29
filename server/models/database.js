@@ -28,20 +28,33 @@ class SyncDb {
 
   prepare(sql) {
     const self = this;
+    // Normalize params: flatten single-array arg, handle object, or keep spread
+    function normalizeParams(args) {
+      if (args.length === 0) return [];
+      if (args.length === 1) {
+        if (Array.isArray(args[0])) return args[0]; // .all([a,b,c]) → [a,b,c]
+        if (typeof args[0] === 'object' && args[0] !== null) return args[0]; // named params object
+        return args; // single primitive
+      }
+      return args; // multiple positional args
+    }
     return {
       run(...args) {
-        // Handle named params (object) or positional (array)
-        const params = args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])
-          ? args[0] : args;
-        self._db.run(sql, params);
+        const params = normalizeParams(args);
+        if (params && (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0)) {
+          self._db.run(sql, params);
+        } else {
+          self._db.run(sql);
+        }
         self._save();
         return { changes: 1 };
       },
       get(...args) {
-        const params = args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])
-          ? args[0] : args;
+        const params = normalizeParams(args);
         const stmt = self._db.prepare(sql);
-        stmt.bind(params);
+        if (params && (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0)) {
+          stmt.bind(params);
+        }
         if (stmt.step()) {
           const result = stmt.getAsObject();
           stmt.free();
@@ -51,11 +64,12 @@ class SyncDb {
         return undefined;
       },
       all(...args) {
-        const params = args.length === 1 && typeof args[0] === 'object' && !Array.isArray(args[0])
-          ? args[0] : args;
+        const params = normalizeParams(args);
         const results = [];
         const stmt = self._db.prepare(sql);
-        stmt.bind(params);
+        if (params && (Array.isArray(params) ? params.length > 0 : Object.keys(params).length > 0)) {
+          stmt.bind(params);
+        }
         while (stmt.step()) {
           results.push(stmt.getAsObject());
         }

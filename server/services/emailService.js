@@ -35,7 +35,7 @@ class EmailService {
           to: emailData.to || emailData.lead_email,
           subject: emailData.subject,
           text: emailData.body,
-          html: emailData.body.replace(/\n/g, '<br>')
+          html: emailData.body.replace(/n/g, '<br>')
         });
         
         console.log(`✅ [GERÇEK MAİL] Başarıyla gönderildi: ${emailData.to || emailData.lead_email}`);
