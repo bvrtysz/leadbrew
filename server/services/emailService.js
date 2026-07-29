@@ -7,25 +7,34 @@ class EmailService {
     this.initTransporter();
   }
 
+  createTransporter(port, secure) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: port,
+      secure: secure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      connectionTimeout: 10000, // 10 seconds timeout (never hangs)
+      greetingTimeout: 5000,
+      socketTimeout: 15000,
+    });
+  }
+
   initTransporter() {
     if (process.env.EMAIL_MODE === 'REAL' && process.env.SMTP_HOST) {
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-      console.log('✅ Gerçek SMTP E-posta Servisi Yapılandırıldı');
+      const port = parseInt(process.env.SMTP_PORT || '465');
+      const secure = port === 465 || process.env.SMTP_SECURE === 'true';
+      this.transporter = this.createTransporter(port, secure);
+      console.log(`✅ Gerçek SMTP E-posta Servisi Yapılandırıldı (Port: ${port}, Secure: ${secure})`);
     }
   }
 
   async sendEmail(emailData) {
     const db = getDb();
     
-    // Re-init transporter if process.env was populated after constructor
+    // Re-init transporter if env vars populated dynamically
     if (!this.transporter && process.env.EMAIL_MODE === 'REAL' && process.env.SMTP_HOST) {
       this.initTransporter();
     }
@@ -46,31 +55,41 @@ class EmailService {
         throw new Error('Alıcı e-posta adresi bulunamadı');
       }
 
-      try {
-        console.log(`[GERÇEK MAİL] Gönderiliyor: ${emailData.subject} -> ${targetEmail}`);
-        
-        const htmlBody = `
-          <!DOCTYPE html>
-          <html>
-          <head><meta charset="UTF-8"></head>
-          <body style="font-family: Arial, sans-serif; font-size: 14px; color: #222; line-height: 1.6;">
-            ${(emailData.body || '').replace(/\n/g, '<br>')}
-          </body>
-          </html>
-        `;
+      console.log(`[GERÇEK MAİL] Gönderiliyor: ${emailData.subject} -> ${targetEmail}`);
+      
+      const htmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Arial, sans-serif; font-size: 14px; color: #222; line-height: 1.6;">
+          ${(emailData.body || '').replace(/\n/g, '<br>')}
+        </body>
+        </html>
+      `;
 
-        await this.transporter.sendMail({
-          from: `"${process.env.SMTP_FROM_NAME || 'LeadBrew Satış'}" <${process.env.SMTP_USER}>`,
-          to: targetEmail,
-          subject: emailData.subject,
-          text: emailData.body,
-          html: htmlBody
-        });
-        
+      const mailOptions = {
+        from: `"${process.env.SMTP_FROM_NAME || 'LeadBrew Satış'}" <${process.env.SMTP_USER}>`,
+        to: targetEmail,
+        subject: emailData.subject,
+        text: emailData.body,
+        html: htmlBody
+      };
+
+      try {
+        await this.transporter.sendMail(mailOptions);
         console.log(`✅ [GERÇEK MAİL] Başarıyla gönderildi: ${targetEmail}`);
       } catch (err) {
-        console.error('❌ E-posta gönderim hatası:', err);
-        throw err;
+        console.error('❌ Port üzerinden ilk gönderim hatası, Port 465 SSL deneniyor:', err.message);
+        
+        // Port 587 / STARTTLS timeout fallback: Try Port 465 Direct SSL
+        try {
+          const fallbackTransporter = this.createTransporter(465, true);
+          await fallbackTransporter.sendMail(mailOptions);
+          console.log(`✅ [GERÇEK MAİL - FALLBACK 465 SSL] Başarıyla gönderildi: ${targetEmail}`);
+        } catch (fallbackErr) {
+          console.error('❌ E-posta gönderim hatası (Fallback da başarısız):', fallbackErr);
+          throw new Error(fallbackErr.message || 'SMTP E-posta gönderim zaman aşımı');
+        }
       }
     } else {
       console.log(`[SİMÜLASYON] E-posta Gönderiliyor: ${emailData.subject} -> Lead ID: ${emailData.lead_id}`);
