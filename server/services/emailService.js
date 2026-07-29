@@ -16,15 +16,21 @@ class EmailService {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      connectionTimeout: 10000, // 10 seconds timeout (never hangs)
-      greetingTimeout: 5000,
-      socketTimeout: 15000,
+      connectionTimeout: 30000, // 30 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
+      pool: {
+        maxConnections: 5,
+        maxMessages: 100,
+        rateDelta: 1000,
+        rateLimit: 5
+      }
     });
   }
 
   initTransporter() {
     if (process.env.EMAIL_MODE === 'REAL' && process.env.SMTP_HOST) {
-      const port = parseInt(process.env.SMTP_PORT || '465');
+      const port = parseInt(process.env.SMTP_PORT || '587');
       const secure = port === 465 || process.env.SMTP_SECURE === 'true';
       this.transporter = this.createTransporter(port, secure);
       console.log(`✅ Gerçek SMTP E-posta Servisi Yapılandırıldı (Port: ${port}, Secure: ${secure})`);
@@ -143,3 +149,4 @@ class EmailService {
 }
 
 module.exports = new EmailService();
+
