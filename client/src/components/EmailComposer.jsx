@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Sparkles, Send, Save, User, Building, Briefcase, Mail, Loader2, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Send, Save, User, Building, Briefcase, Mail, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../utils/api';
 import './EmailComposer.css';
 
 const Toast = ({ message, type, onClose }) => (
-  <div className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in z-50 ${type === 'error' ? 'bg-red-900 border border-red-500' : 'bg-green-900 border border-green-500'}`} style={{background: type === 'error' ? 'var(--bg-secondary)' : 'var(--bg-secondary)', borderColor: type==='error' ? 'var(--accent-danger)' : 'var(--accent-success)'}}>
-    <CheckCircle2 className={type === 'error' ? 'text-red-500' : 'text-green-500'} />
-    <span className="text-white">{message}</span>
-    <button onClick={onClose} className="ml-4 text-white">&times;</button>
+  <div className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in z-50`} style={{background: 'var(--bg-secondary)', border: `1px solid ${type === 'error' ? 'var(--accent-danger)' : 'var(--accent-success)'}`}}>
+    {type === 'error' ? <AlertCircle className="text-danger" size={20} /> : <CheckCircle2 className="text-success" size={20} />}
+    <span className="text-white text-sm">{message}</span>
+    <button onClick={onClose} className="ml-4 text-white font-bold">&times;</button>
   </div>
 );
 
@@ -19,6 +19,7 @@ const EmailComposer = () => {
   const [sending, setSending] = useState(false);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(false);
   const [followUpCount, setFollowUpCount] = useState("2");
@@ -30,6 +31,7 @@ const EmailComposer = () => {
       setLoading(true);
       api.getLead(leadId).then(data => {
         setLead(data);
+        setRecipientEmail(data.email || '');
       }).catch(err => {
         console.error(err);
         showToast('Alıcı bilgileri yüklenemedi.', 'error');
@@ -39,7 +41,7 @@ const EmailComposer = () => {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 5000);
   };
 
   const handleGenerateAI = async () => {
@@ -53,7 +55,6 @@ const EmailComposer = () => {
     } catch (err) {
       console.error(err);
       showToast('İçerik oluşturulurken hata oluştu.', 'error');
-      // Fallback
       setSubject(`${lead.company || 'Şirketiniz'} İçin Özel Teklif`);
       setBody(`Merhaba ${lead.name || 'Yetkili'},\n\nÖzel kavrulmuş premium kahve çekirdeklerimiz ile size destek olmak isteriz...`);
     } finally {
@@ -66,14 +67,25 @@ const EmailComposer = () => {
       showToast('Lütfen konu ve mesaj alanlarını doldurun.', 'error');
       return;
     }
-    if (window.confirm('Bu e-postayı göndermek istediğinize emin misiniz?')) {
+    if (!recipientEmail) {
+      showToast('Lütfen geçerli bir alıcı e-posta adresi girin.', 'error');
+      return;
+    }
+    if (window.confirm(`${recipientEmail} adresine e-posta gönderilsin mi?`)) {
       setSending(true);
       try {
-        await api.sendEmail({ lead_id: lead.id, subject, body, followUpCount, followUpDays });
-        showToast('E-posta başarıyla gönderildi!');
-        setTimeout(() => navigate('/leads'), 2000);
+        const res = await api.sendEmail({ 
+          lead_id: lead.id, 
+          lead_email: recipientEmail, 
+          subject, 
+          body, 
+          followUpCount, 
+          followUpDays 
+        });
+        showToast(res.message || 'E-posta başarıyla gönderildi!');
+        setTimeout(() => navigate('/leads'), 2500);
       } catch (err) {
-        showToast('E-posta gönderilirken hata oluştu.', 'error');
+        showToast(`Gönderim Başarısız: ${err.message}`, 'error');
       } finally {
         setSending(false);
       }
@@ -103,14 +115,24 @@ const EmailComposer = () => {
                 <h4 className="text-h3 mb-1">{lead.name}</h4>
                 <p className="text-secondary mb-4 flex items-center gap-2"><Briefcase size={16} /> {lead.position}</p>
                 
-                <div className="info-list flex flex-col gap-2">
+                <div className="info-list flex flex-col gap-3">
                   <div className="info-item flex items-center gap-2">
                     <Building size={16} className="text-muted" />
                     <span>{lead.company}</span>
                   </div>
-                  <div className="info-item flex items-center gap-2">
-                    <Mail size={16} className="text-muted" />
-                    <span>{lead.email}</span>
+
+                  <div className="form-group mb-0">
+                    <label className="form-label text-xs">Alıcı E-posta Adresi (Düzenlenebilir)</label>
+                    <div className="flex items-center gap-2">
+                      <Mail size={16} className="text-muted" />
+                      <input 
+                        type="email" 
+                        className="form-input text-sm" 
+                        value={recipientEmail}
+                        onChange={(e) => setRecipientEmail(e.target.value)}
+                        placeholder="ornek@domain.com"
+                      />
+                    </div>
                   </div>
                 </div>
                 

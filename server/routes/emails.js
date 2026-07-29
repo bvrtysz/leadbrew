@@ -61,15 +61,16 @@ router.post('/compose', async (req, res) => {
   }
 });
 
-// POST /api/emails/send - Send email (simulation mode)
+// POST /api/emails/send - Send email (simulation or real)
 router.post('/send', async (req, res) => {
   try {
-    const { lead_id, campaign_id, subject, body, type = 'initial' } = req.body;
+    const { lead_id, lead_email, campaign_id, subject, body, type = 'initial' } = req.body;
     
     const emailId = uuid();
     const result = await emailService.sendEmail({
       id: emailId,
       lead_id,
+      lead_email,
       campaign_id,
       subject,
       body,
@@ -79,7 +80,7 @@ router.post('/send', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('E-posta gönderilirken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    res.status(500).json({ error: error.message || 'E-posta gönderilemedi' });
   }
 });
 
