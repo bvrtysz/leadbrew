@@ -89,7 +89,8 @@ class PureDb {
     if (sqlUpper.includes('FROM LEADS') && sqlUpper.includes('GROUP BY STATUS')) {
       const counts = {};
       store.leads.forEach(l => {
-        counts[l.status] = (counts[l.status] || 0) + 1;
+        const st = l.status || 'new';
+        counts[st] = (counts[st] || 0) + 1;
       });
       return Object.keys(counts).map(status => ({ status, count: counts[status] }));
     }
@@ -111,11 +112,11 @@ class PureDb {
         let pIndex = 0;
         if (sqlUpper.includes('INDUSTRY = ?')) {
           const val = params[pIndex++];
-          if (val) result = result.filter(l => l.industry === val);
+          if (val) result = result.filter(l => (l.industry || '').toLowerCase() === val.toLowerCase());
         }
         if (sqlUpper.includes('STATUS = ?')) {
           const val = params[pIndex++];
-          if (val) result = result.filter(l => l.status === val);
+          if (val) result = result.filter(l => (l.status || 'new') === val);
         }
         if (sqlUpper.includes('LIKE ?')) {
           const term = (params[pIndex] || '').replace(/%/g, '').toLowerCase();
@@ -223,7 +224,7 @@ class PureDb {
       const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
       let newLead = {};
       if (params && typeof params[0] === 'object' && !Array.isArray(params[0])) {
-        newLead = { ...params[0], created_at: now };
+        newLead = { ...params[0], status: params[0].status || 'new', created_at: now };
       } else if (Array.isArray(params)) {
         newLead = {
           id: params[0] || uuid(),
@@ -232,12 +233,16 @@ class PureDb {
           company: params[3] || '',
           position: params[4] || '',
           industry: params[5] || '',
-          status: params[6] || 'new',
+          linkedin_url: params[6] || '',
+          website: params[7] || '',
+          phone: params[8] || '',
+          notes: params[9] || '',
+          status: 'new',
           source: 'manual',
           created_at: now
         };
       }
-      store.leads.push(newLead);
+      store.leads.unshift(newLead); // Add to beginning of array
     }
 
     // UPDATE leads SET status = ? WHERE id = ?

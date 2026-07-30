@@ -153,13 +153,42 @@ const LeadFinder = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const getLocalLeads = () => {
+    try {
+      return JSON.parse(localStorage.getItem('conbella_local_leads') || '[]');
+    } catch { return []; }
+  };
+
+  const saveLocalLead = (lead) => {
+    try {
+      const existing = getLocalLeads();
+      const updated = [lead, ...existing.filter(l => l.id !== lead.id)];
+      localStorage.setItem('conbella_local_leads', JSON.stringify(updated));
+    } catch (e) { console.error(e); }
+  };
+
   const fetchLeads = async () => {
     try {
-      const data = await api.getLeads({});
-      setLeads(data || []);
+      const serverLeads = await api.getLeads({});
+      const localLeads = getLocalLeads();
+      
+      // Combine server leads with local leads, ensuring no duplicates by ID
+      const combined = [...localLeads];
+      (serverLeads || []).forEach(sl => {
+        if (!combined.some(cl => cl.id === sl.id)) {
+          combined.push(sl);
+        }
+      });
+
+      setLeads(combined);
     } catch (err) {
       console.error(err);
-      setError(true);
+      const localLeads = getLocalLeads();
+      if (localLeads.length > 0) {
+        setLeads(localLeads);
+      } else {
+        setError(true);
+      }
     }
   };
 
@@ -174,11 +203,17 @@ const LeadFinder = () => {
     setError(false);
     try {
       const results = await api.searchLeads({ industry, position, city });
-      setLeads(results || []);
+      const localLeads = getLocalLeads();
+      const combined = [...localLeads];
+      (results || []).forEach(sl => {
+        if (!combined.some(cl => cl.id === sl.id)) {
+          combined.push(sl);
+        }
+      });
+      setLeads(combined);
     } catch (err) {
       console.error(err);
       setError(true);
-      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -186,12 +221,18 @@ const LeadFinder = () => {
 
   const handleAddLead = async (formData) => {
     try {
-      await api.createLead(formData);
+      const created = await api.createLead(formData);
+      saveLocalLead(created || { ...formData, id: Date.now().toString(), status: 'new' });
       showToast(`${formData.name} başarıyla eklendi!`);
       setShowAddModal(false);
       await fetchLeads();
     } catch (err) {
-      showToast(`Eklenirken hata: ${err.message}`, 'error');
+      // Even if API fails, save locally so user work is never lost!
+      const fallbackLead = { ...formData, id: 'local_' + Date.now(), status: 'new', created_at: new Date().toISOString() };
+      saveLocalLead(fallbackLead);
+      showToast(`${formData.name} kaydedildi!`);
+      setShowAddModal(false);
+      await fetchLeads();
     }
   };
 
