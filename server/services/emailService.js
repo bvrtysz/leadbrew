@@ -6,33 +6,32 @@ class EmailService {
     console.log(`E-posta modu: ${this.mode}`);
   }
 
-  async sendViaNodemailer(to, subject, htmlBody, textBody) {
-    const nodemailer = require('nodemailer');
-    
-    const user = (process.env.SMTP_USER || 'bvrtysz@gmail.com').trim();
-    const rawPass = (process.env.SMTP_PASS || 'osza oazs kauw qyjn').trim();
-    const pass = rawPass.replace(/\s+/g, ''); // strip spaces from App Password
-    
-    const port = parseInt(process.env.SMTP_PORT || '465');
-    const secure = port === 465 || process.env.SMTP_SECURE === 'true';
-    
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: port,
-      secure: secure,
-      auth: { user, pass },
-      connectionTimeout: 12000,
-      greetingTimeout: 6000,
-      socketTimeout: 15000,
+  async sendViaBrevo(to, subject, htmlBody, textBody) {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: {
+          name: process.env.SMTP_FROM_NAME || 'Conbella',
+          email: process.env.SMTP_USER || 'bvrtysz@gmail.com'
+        },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: htmlBody,
+        textContent: textBody
+      }),
     });
 
-    await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${user}>`,
-      to: to,
-      subject: subject,
-      text: textBody,
-      html: htmlBody,
-    });
+    const data = await res.json();
+    if (!res.ok) {
+      const errorMsg = data.message || JSON.stringify(data);
+      throw new Error(`Brevo Hatası: ${errorMsg}`);
+    }
+    return data;
   }
 
   async sendViaResend(to, subject, htmlBody, textBody) {
@@ -59,6 +58,35 @@ class EmailService {
     return data;
   }
 
+  async sendViaNodemailer(to, subject, htmlBody, textBody) {
+    const nodemailer = require('nodemailer');
+    
+    const user = (process.env.SMTP_USER || 'bvrtysz@gmail.com').trim();
+    const rawPass = (process.env.SMTP_PASS || 'osza oazs kauw qyjn').trim();
+    const pass = rawPass.replace(/\s+/g, '');
+    
+    const port = parseInt(process.env.SMTP_PORT || '465');
+    const secure = port === 465 || process.env.SMTP_SECURE === 'true';
+    
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: port,
+      secure: secure,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 5000,
+      socketTimeout: 15000,
+    });
+
+    await transporter.sendMail({
+      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${user}>`,
+      to: to,
+      subject: subject,
+      text: textBody,
+      html: htmlBody,
+    });
+  }
+
   async sendEmail(emailData) {
     const db = getDb();
 
@@ -80,26 +108,41 @@ class EmailService {
 
       let sendError = null;
 
-      // 1. Try Gmail SMTP (Sends directly to ANY recipient in the world)
-      const smtpUser = process.env.SMTP_USER || 'bvrtysz@gmail.com';
-      if (smtpUser) {
+      // 1. BREVO HTTP API (Highest Priority: Sends to ANY address worldwide without domain limits)
+      if (process.env.BREVO_API_KEY) {
         try {
-          await this.sendViaNodemailer(targetEmail, emailData.subject, htmlBody, emailData.body);
-          console.log(`✅ [GMAIL SMTP] Basariyla gonderildi: ${targetEmail}`);
+          await this.sendViaBrevo(targetEmail, emailData.subject, htmlBody, emailData.body);
+          console.log(`✅ [BREVO API] Basariyla gonderildi: ${targetEmail}`);
+          sendError = null;
         } catch (err) {
-          console.error('❌ Gmail SMTP gonderim hatasi:', err.message);
+          console.error('❌ Brevo API hatasi:', err.message);
           sendError = err;
         }
       }
 
-      // 2. Try Resend if Gmail SMTP failed or wasn't used
-      if (sendError && process.env.RESEND_API_KEY) {
+      // 2. Gmail SMTP (Secondary)
+      if (sendError !== null || !process.env.BREVO_API_KEY) {
+        const smtpUser = process.env.SMTP_USER || 'bvrtysz@gmail.com';
+        if (smtpUser) {
+          try {
+            await this.sendViaNodemailer(targetEmail, emailData.subject, htmlBody, emailData.body);
+            console.log(`✅ [GMAIL SMTP] Basariyla gonderildi: ${targetEmail}`);
+            sendError = null;
+          } catch (smtpErr) {
+            console.error('❌ Gmail SMTP hatasi:', smtpErr.message);
+            if (!sendError) sendError = smtpErr;
+          }
+        }
+      }
+
+      // 3. Resend HTTP API (Fallback)
+      if ((sendError !== null || (!process.env.BREVO_API_KEY && !process.env.SMTP_USER)) && process.env.RESEND_API_KEY) {
         try {
           await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
           console.log(`✅ [RESEND] Basariyla gonderildi: ${targetEmail}`);
           sendError = null;
         } catch (resendErr) {
-          console.error('❌ Resend gonderim hatasi:', resendErr.message);
+          console.error('❌ Resend hatasi:', resendErr.message);
           sendError = resendErr;
         }
       }
@@ -107,7 +150,7 @@ class EmailService {
       if (sendError) {
         let msg = sendError.message || 'E-posta gonderilemedi';
         if (msg.includes('testing emails to your own email address')) {
-          msg = `Resend test modunda mailler sadece kayitli adresinize (bvrtysz@gmail.com) iletilebilir. Herkese (Yahoo, Hotmail vb.) mail atmak icin resend.com/domains adresinden domain ekleyebilirsiniz.`;
+          msg = `Resend test modunda mailler sadece kayitli adresinize iletilebilir. Brevo API anahtarinizi kontrol edin.`;
         }
         throw new Error(msg);
       }
