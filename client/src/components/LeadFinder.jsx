@@ -1,21 +1,139 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Loader2, Building, MapPin, Briefcase } from 'lucide-react';
+import { Search, Filter, Loader2, Building, MapPin, Briefcase, Plus, X, CheckCircle2, AlertCircle, Mail, Phone, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import './LeadFinder.css';
 
 const statusColors = {
-  yeni: 'badge-info',
-  iletisimde: 'badge-primary',
-  ilgileniyor: 'badge-warning',
-  musteri: 'badge-success'
+  new: 'badge-info',
+  contacted: 'badge-primary',
+  replied: 'badge-warning',
+  interested: 'badge-success',
+  customer: 'badge-success'
 };
 
 const statusLabels = {
-  yeni: 'Yeni',
-  iletisimde: 'İletişimde',
-  ilgileniyor: 'İlgileniyor',
-  musteri: 'Müşteri'
+  new: 'Yeni',
+  contacted: 'İletişimde',
+  replied: 'Yanıtladı',
+  interested: 'İlgileniyor',
+  customer: 'Müşteri'
+};
+
+const Toast = ({ message, type, onClose }) => (
+  <div className="fixed bottom-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in z-50" style={{background: 'var(--bg-secondary)', border: `1px solid ${type === 'error' ? 'var(--accent-danger)' : 'var(--accent-success)'}`}}>
+    {type === 'error' ? <AlertCircle size={20} style={{color: 'var(--accent-danger)'}} /> : <CheckCircle2 size={20} style={{color: 'var(--accent-success)'}} />}
+    <span className="text-white text-sm">{message}</span>
+    <button onClick={onClose} className="ml-4 text-white font-bold">&times;</button>
+  </div>
+);
+
+const AddLeadModal = ({ isOpen, onClose, onSave }) => {
+  const [form, setForm] = useState({
+    name: '', email: '', company: '', position: '', industry: '', phone: '', notes: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.email) return;
+    setSaving(true);
+    try {
+      await onSave(form);
+      setForm({ name: '', email: '', company: '', position: '', industry: '', phone: '', notes: '' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content glass-card" onClick={e => e.stopPropagation()} style={{maxWidth: 520, width: '90%'}}>
+        <div className="flex-between mb-6">
+          <h2 className="text-h2 mb-0" style={{fontSize: '1.3rem'}}>Yeni Lead Ekle</h2>
+          <button onClick={onClose} className="btn btn-ghost" style={{padding: '0.4rem'}}><X size={20} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <div className="form-group mb-0 flex-1">
+              <label className="form-label">Ad Soyad *</label>
+              <div className="flex items-center gap-2">
+                <User size={16} className="text-muted" />
+                <input type="text" className="form-input" placeholder="Ahmet Yılmaz" value={form.name} onChange={e => handleChange('name', e.target.value)} required />
+              </div>
+            </div>
+            <div className="form-group mb-0 flex-1">
+              <label className="form-label">E-posta *</label>
+              <div className="flex items-center gap-2">
+                <Mail size={16} className="text-muted" />
+                <input type="email" className="form-input" placeholder="ahmet@firma.com" value={form.email} onChange={e => handleChange('email', e.target.value)} required />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="form-group mb-0 flex-1">
+              <label className="form-label">Şirket</label>
+              <div className="flex items-center gap-2">
+                <Building size={16} className="text-muted" />
+                <input type="text" className="form-input" placeholder="ABC Otel" value={form.company} onChange={e => handleChange('company', e.target.value)} />
+              </div>
+            </div>
+            <div className="form-group mb-0 flex-1">
+              <label className="form-label">Pozisyon</label>
+              <div className="flex items-center gap-2">
+                <Briefcase size={16} className="text-muted" />
+                <input type="text" className="form-input" placeholder="Genel Müdür" value={form.position} onChange={e => handleChange('position', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="form-group mb-0 flex-1">
+              <label className="form-label">Sektör</label>
+              <select className="form-input form-select" value={form.industry} onChange={e => handleChange('industry', e.target.value)}>
+                <option value="">Seçiniz</option>
+                <option value="Otelcilik">Otelcilik</option>
+                <option value="Restoran">Restoran</option>
+                <option value="Kafe">Kafe</option>
+                <option value="Kurumsal Ofis">Kurumsal Ofis</option>
+                <option value="Catering">Catering</option>
+                <option value="Perakende">Perakende</option>
+                <option value="Diger">Diğer</option>
+              </select>
+            </div>
+            <div className="form-group mb-0 flex-1">
+              <label className="form-label">Telefon</label>
+              <div className="flex items-center gap-2">
+                <Phone size={16} className="text-muted" />
+                <input type="tel" className="form-input" placeholder="+90 5xx xxx xx xx" value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-group mb-0">
+            <label className="form-label">Notlar</label>
+            <textarea className="form-input" placeholder="Bu müşteri hakkında notlarınız..." value={form.notes} onChange={e => handleChange('notes', e.target.value)} rows={2} style={{resize: 'vertical'}} />
+          </div>
+
+          <div className="flex gap-3 mt-2">
+            <button type="button" className="btn btn-secondary flex-1" onClick={onClose}>İptal</button>
+            <button type="submit" className="btn btn-primary flex-1" disabled={saving || !form.name || !form.email}>
+              {saving ? <Loader2 size={16} className="spin" /> : <Plus size={16} />}
+              {saving ? 'Kaydediliyor...' : 'Lead Ekle'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };
 
 const LeadFinder = () => {
@@ -26,22 +144,28 @@ const LeadFinder = () => {
   const [industry, setIndustry] = useState('');
   const [position, setPosition] = useState('');
   const [city, setCity] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [toast, setToast] = useState(null);
   const navigate = useNavigate();
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const fetchLeads = async () => {
+    try {
+      const data = await api.getLeads({});
+      setLeads(data || []);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    }
+  };
+
   useEffect(() => {
-    const fetchInitial = async () => {
-      try {
-        setInitialLoading(true);
-        const data = await api.getLeads({});
-        setLeads(data || []);
-      } catch (err) {
-        console.error(err);
-        setError(true);
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-    fetchInitial();
+    setInitialLoading(true);
+    fetchLeads().finally(() => setInitialLoading(false));
   }, []);
 
   const handleSearch = async (e) => {
@@ -60,11 +184,30 @@ const LeadFinder = () => {
     }
   };
 
+  const handleAddLead = async (formData) => {
+    try {
+      await api.createLead(formData);
+      showToast(`${formData.name} başarıyla eklendi!`);
+      setShowAddModal(false);
+      await fetchLeads();
+    } catch (err) {
+      showToast(`Eklenirken hata: ${err.message}`, 'error');
+    }
+  };
+
   return (
     <div className="lead-finder-container animate-fade-in">
-      <header className="mb-8">
-        <h1 className="text-h1">Lead Bul</h1>
-        <p className="text-secondary">Hedef kitlenize uygun çay ve kahve alıcılarını saniyeler içinde bulun.</p>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <AddLeadModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleAddLead} />
+
+      <header className="flex-between mb-8">
+        <div>
+          <h1 className="text-h1">Lead Bul</h1>
+          <p className="text-secondary">Hedef kitlenize uygun çay ve kahve alıcılarını saniyeler içinde bulun.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          <Plus size={18} /> Yeni Lead Ekle
+        </button>
       </header>
 
       {error && (
@@ -114,7 +257,6 @@ const LeadFinder = () => {
 
       <div className="results-header flex-between mb-4">
         <h3 className="text-h3 mb-0">{leads.length} Sonuç Bulundu</h3>
-        <button className="btn btn-secondary"><Filter size={16} /> Filtrele</button>
       </div>
 
       {initialLoading ? (
@@ -123,7 +265,7 @@ const LeadFinder = () => {
         </div>
       ) : leads.length === 0 ? (
         <div className="glass-card text-center py-12 text-muted">
-          Arama kriterlerinize uygun lead bulunamadı.
+          Henüz lead eklenmemiş. Yukarıdaki "Yeni Lead Ekle" butonuyla başlayın.
         </div>
       ) : (
         <div className="grid-3">
@@ -138,16 +280,12 @@ const LeadFinder = () => {
                 </div>
                 <div className="lead-info">
                   <h4 className="lead-name font-semibold text-lg">{lead.name}</h4>
-                  <p className="lead-position flex items-center gap-2 text-sm text-secondary mt-1"><Briefcase size={14} /> {lead.position}</p>
+                  <p className="lead-position flex items-center gap-2 text-sm text-secondary mt-1"><Briefcase size={14} /> {lead.position || 'Pozisyon belirtilmemiş'}</p>
                   
                   <div className="lead-details mt-4 text-sm gap-2 flex flex-col">
                     <div className="detail-item flex items-center gap-2">
                       <Building size={14} className="text-muted" />
-                      <span>{lead.company} {lead.industry && `(${lead.industry})`}</span>
-                    </div>
-                    <div className="detail-item flex items-center gap-2">
-                      <MapPin size={14} className="text-muted" />
-                      <span>{lead.location || 'Konum bilinmiyor'}</span>
+                      <span>{lead.company || 'Şirket belirtilmemiş'} {lead.industry && `(${lead.industry})`}</span>
                     </div>
                   </div>
                   <div className="lead-email mt-3 text-sm">
