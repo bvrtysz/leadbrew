@@ -6,6 +6,35 @@ class EmailService {
     console.log(`E-posta modu: ${this.mode}`);
   }
 
+  async sendViaNodemailer(to, subject, htmlBody, textBody) {
+    const nodemailer = require('nodemailer');
+    
+    // Use Nodemailer built-in Gmail service or explicit SMTP settings
+    const port = parseInt(process.env.SMTP_PORT || '465');
+    const secure = port === 465 || process.env.SMTP_SECURE === 'true';
+    
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: port,
+      secure: secure,
+      auth: {
+        user: process.env.SMTP_USER || 'bvrtysz@gmail.com',
+        pass: process.env.SMTP_PASS || 'osza oazs kauw qyjn',
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 8000,
+      socketTimeout: 20000,
+    });
+
+    await transporter.sendMail({
+      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${process.env.SMTP_USER || 'bvrtysz@gmail.com'}>`,
+      to: to,
+      subject: subject,
+      text: textBody,
+      html: htmlBody,
+    });
+  }
+
   async sendViaResend(to, subject, htmlBody, textBody) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -24,73 +53,9 @@ class EmailService {
     
     const data = await res.json();
     if (!res.ok) {
-      const errorMsg = data.message || JSON.stringify(data);
-      if (errorMsg.includes('testing emails to your own email address')) {
-        const ownerEmail = process.env.SMTP_USER || 'bvrtysz@gmail.com';
-        console.log(`⚠️ Resend Test Modu Kısıtlaması: Mail ${ownerEmail} adresine yönlendiriliyor... (Hedef: ${to})`);
-        
-        const testSubject = `[Test Modu -> ${to}] ${subject}`;
-        const testHtml = `
-          <div style="background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:12px; border-radius:6px; margin-bottom:16px; font-family:sans-serif; font-size:13px;">
-            ⚠️ <strong>Resend Test Modu Bilgilendirmesi:</strong> Resend ücretsiz hesabı varsayılan olarak mailleri hesap sahibine iletir.<br>
-            <strong>Asıl Hedef Alıcı:</strong> ${to}
-          </div>
-          ${htmlBody}
-        `;
-
-        return await this.sendViaResendDirect(ownerEmail, testSubject, testHtml, textBody);
-      }
-      throw new Error(errorMsg);
+      throw new Error(data.message || JSON.stringify(data));
     }
     return data;
-  }
-
-  async sendViaResendDirect(to, subject, htmlBody, textBody) {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'Conbella <onboarding@resend.dev>',
-        to: [to],
-        subject: subject,
-        html: htmlBody,
-        text: textBody,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || JSON.stringify(data));
-    return data;
-  }
-
-  async sendViaNodemailer(to, subject, htmlBody, textBody) {
-    const nodemailer = require('nodemailer');
-    
-    const port = parseInt(process.env.SMTP_PORT || '465');
-    const secure = port === 465 || process.env.SMTP_SECURE === 'true';
-    
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: port,
-      secure: secure,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 5000,
-      socketTimeout: 15000,
-    });
-
-    await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${process.env.SMTP_USER}>`,
-      to: to,
-      subject: subject,
-      text: textBody,
-      html: htmlBody,
-    });
   }
 
   async sendEmail(emailData) {
@@ -112,14 +77,28 @@ class EmailService {
 
       console.log(`[GERCEK MAIL] Gonderiliyor: ${emailData.subject} -> ${targetEmail}`);
 
-      if (process.env.RESEND_API_KEY) {
+      // Try Gmail SMTP first so emails go directly to ANY address (yahoo, hotmail, etc.)
+      const smtpUser = process.env.SMTP_USER || 'bvrtysz@gmail.com';
+      const smtpPass = process.env.SMTP_PASS || 'osza oazs kauw qyjn';
+
+      if (smtpUser && smtpPass) {
+        try {
+          await this.sendViaNodemailer(targetEmail, emailData.subject, htmlBody, emailData.body);
+          console.log(`✅ [GMAIL SMTP] Basariyla gonderildi: ${targetEmail}`);
+        } catch (smtpErr) {
+          console.error('❌ Gmail SMTP hatasi, Resend deneniyor:', smtpErr.message);
+          if (process.env.RESEND_API_KEY) {
+            await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
+            console.log(`✅ [RESEND FALLBACK] Basariyla gonderildi: ${targetEmail}`);
+          } else {
+            throw smtpErr;
+          }
+        }
+      } else if (process.env.RESEND_API_KEY) {
         await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
-        console.log(`[RESEND] Basariyla gonderildi: ${targetEmail}`);
-      } else if (process.env.SMTP_HOST) {
-        await this.sendViaNodemailer(targetEmail, emailData.subject, htmlBody, emailData.body);
-        console.log(`[SMTP] Basariyla gonderildi: ${targetEmail}`);
+        console.log(`✅ [RESEND] Basariyla gonderildi: ${targetEmail}`);
       } else {
-        throw new Error('E-posta servisi yapilandirilmamis (RESEND_API_KEY veya SMTP_HOST gerekli)');
+        throw new Error('E-posta servisi yapilandirilmamis (SMTP_USER veya RESEND_API_KEY gerekli)');
       }
     } else {
       console.log(`[SIMULASYON] E-posta: ${emailData.subject} -> Lead ID: ${emailData.lead_id}`);
@@ -167,7 +146,6 @@ class EmailService {
       if (email) leadId = email.lead_id;
     }
 
-    // Fallback if leadId directly passed
     if (!emailId && !leadId) return null;
 
     if (email) {
