@@ -26,7 +26,6 @@ router.get('/', (req, res) => {
 router.get('/follow-ups', (req, res) => {
   try {
     const db = getDb();
-    // Basic logic for pending follow-ups
     const pending = db.prepare(`
       SELECT e.*, l.name, l.email, l.company 
       FROM emails e
@@ -40,7 +39,57 @@ router.get('/follow-ups', (req, res) => {
   }
 });
 
-// POST /api/emails/compose - AI-generate personalized email for a lead
+// GET /api/emails/thread/:leadId - Fetch full conversation messages for a lead
+router.get('/thread/:leadId', (req, res) => {
+  try {
+    const db = getDb();
+    const leadId = req.params.leadId;
+    
+    // Fetch from conversations table
+    const convs = db.prepare('SELECT * FROM conversations WHERE lead_id = ? ORDER BY created_at ASC').all(leadId);
+    
+    if (convs && convs.length > 0) {
+      const messages = convs.map(c => ({
+        id: c.id,
+        text: c.message,
+        isSent: c.direction === 'outbound',
+        time: c.created_at ? new Date(c.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : 'Şimdi'
+      }));
+      return res.json(messages);
+    }
+
+    // Fallback: fetch directly from emails table if conversations table is empty for this lead
+    const emails = db.prepare('SELECT * FROM emails WHERE lead_id = ? ORDER BY created_at ASC').all(leadId);
+    const messages = emails.map(e => ({
+      id: e.id,
+      text: `${e.subject ? e.subject + '\n\n' : ''}${e.body}`,
+      isSent: true,
+      time: e.created_at ? new Date(e.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : 'Şimdi'
+    }));
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Thread alınırken hata:', error);
+    res.status(500).json({ error: 'Sunucu hatası' });
+  }
+});
+
+// POST /api/emails/ai-reply-options - Generate 3 AI alternative replies
+router.post('/ai-reply-options', async (req, res) => {
+  try {
+    const db = getDb();
+    const { lead_id, last_message } = req.body;
+    const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
+    
+    const options = await aiService.generateReplyOptions(lead, last_message);
+    res.json({ options });
+  } catch (error) {
+    console.error('AI yanıt seçenekleri oluşturulurken hata:', error);
+    res.status(500).json({ error: 'Sunucu hatası' });
+  }
+});
+
+// POST /api/emails/compose - AI-generate personalized initial email
 router.post('/compose', async (req, res) => {
   try {
     const db = getDb();
@@ -61,7 +110,7 @@ router.post('/compose', async (req, res) => {
   }
 });
 
-// POST /api/emails/send - Send email (simulation or real)
+// POST /api/emails/send - Send email (real or simulation)
 router.post('/send', async (req, res) => {
   try {
     const { lead_id, lead_email, campaign_id, subject, body, type = 'initial' } = req.body;
@@ -84,43 +133,11 @@ router.post('/send', async (req, res) => {
   }
 });
 
-// POST /api/emails/bulk-send - Send emails to all leads in a campaign
-router.post('/bulk-send', async (req, res) => {
+// POST /api/emails/simulate-lead-reply/:leadId - Trigger simulated reply from lead
+router.post('/simulate-lead-reply/:leadId', (req, res) => {
   try {
-    const db = getDb();
-    const { campaign_id, lead_ids } = req.body;
-    const results = [];
-    
-    for (const lead_id of lead_ids) {
-      const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(lead_id);
-      if (lead) {
-        const emailContent = await aiService.generateEmail(lead, 'initial');
-        const emailId = uuid();
-        const result = await emailService.sendEmail({
-          id: emailId,
-          lead_id,
-          campaign_id,
-          subject: emailContent.subject,
-          body: emailContent.body,
-          type: 'initial'
-        });
-        results.push(result);
-      }
-    }
-    
-    res.json({ message: `${results.length} e-posta başarıyla gönderildi (Simülasyon)`, results });
-  } catch (error) {
-    res.status(500).json({ error: 'Sunucu hatası' });
-  }
-});
-
-// POST /api/emails/simulate-reply/:id - Simulate a reply
-router.post('/simulate-reply/:id', (req, res) => {
-  try {
-    const emailId = req.params.id;
-    const result = emailService.simulateReply(emailId);
-    if (!result) return res.status(404).json({ error: 'E-posta bulunamadı veya yanıtlanmaya uygun değil' });
-    
+    const leadId = req.params.leadId;
+    const result = emailService.simulateReply(null);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Sunucu hatası' });

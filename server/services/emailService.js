@@ -24,7 +24,6 @@ class EmailService {
     
     const data = await res.json();
     if (!res.ok) {
-      // Catch Resend testing domain restriction (sending to non-owner email)
       const errorMsg = data.message || JSON.stringify(data);
       if (errorMsg.includes('testing emails to your own email address')) {
         const ownerEmail = process.env.SMTP_USER || 'bvrtysz@gmail.com';
@@ -113,7 +112,6 @@ class EmailService {
 
       console.log(`[GERCEK MAIL] Gonderiliyor: ${emailData.subject} -> ${targetEmail}`);
 
-      // Try Resend first (HTTP, no SMTP port needed), fallback to Nodemailer
       if (process.env.RESEND_API_KEY) {
         await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
         console.log(`[RESEND] Basariyla gonderildi: ${targetEmail}`);
@@ -128,7 +126,7 @@ class EmailService {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // Save to database
+    // Save email to database
     db.prepare(`
       INSERT INTO emails (id, lead_id, campaign_id, subject, body, type, status, sent_at)
       VALUES (?, ?, ?, ?, ?, ?, 'sent', CURRENT_TIMESTAMP)
@@ -141,8 +139,15 @@ class EmailService {
       emailData.type || 'initial'
     );
 
+    // Save to conversations history & update lead status
     if (emailData.lead_id) {
       db.prepare("UPDATE leads SET status = 'contacted' WHERE id = ?").run(emailData.lead_id);
+      
+      const uuid = require('uuid').v4;
+      db.prepare(`
+        INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
+        VALUES (?, ?, ?, ?, 'outbound', CURRENT_TIMESTAMP)
+      `).run(uuid(), emailData.lead_id, emailData.id, emailData.body);
     }
 
     return {
@@ -154,21 +159,38 @@ class EmailService {
 
   simulateReply(emailId) {
     const db = getDb();
-    const email = db.prepare('SELECT * FROM emails WHERE id = ?').get(emailId);
-    if (!email || email.status === 'replied') return null;
+    let email = null;
+    let leadId = null;
 
-    db.prepare("UPDATE emails SET status = 'replied', replied_at = CURRENT_TIMESTAMP WHERE id = ?").run(emailId);
-    if (email.lead_id) {
-      db.prepare("UPDATE leads SET status = 'replied' WHERE id = ?").run(email.lead_id);
+    if (emailId) {
+      email = db.prepare('SELECT * FROM emails WHERE id = ?').get(emailId);
+      if (email) leadId = email.lead_id;
+    }
+
+    // Fallback if leadId directly passed
+    if (!emailId && !leadId) return null;
+
+    if (email) {
+      db.prepare("UPDATE emails SET status = 'replied', replied_at = CURRENT_TIMESTAMP WHERE id = ?").run(email.id);
+    }
+    if (leadId) {
+      db.prepare("UPDATE leads SET status = 'replied' WHERE id = ?").run(leadId);
     }
 
     const uuid = require('uuid').v4;
-    db.prepare(`
-      INSERT INTO conversations (id, lead_id, email_id, message, direction)
-      VALUES (?, ?, ?, ?, 'inbound')
-    `).run(uuid(), email.lead_id, emailId, 'Merhaba, konuyla ilgileniyoruz. Detayli bilgi alabilir miyim?');
+    const sampleReplies = [
+      'Merhaba, sunduğunuz çay ve kahve teklifi ilgimizi çekti. Fiyat listesini ve numune talep formunu gönderebilir misiniz?',
+      'İyi günler, önümüzdeki hafta salı günü 14:00 için kısa bir tanıtım toplantısı ayarlayabiliriz. Saygılarımla.',
+      'Merhaba, ürün kataloğunuzu inceledik. Toptan alımda ödeme koşullarınız nedir?'
+    ];
+    const randomReply = sampleReplies[Math.floor(Math.random() * sampleReplies.length)];
 
-    return { success: true, message: 'Yanit simule edildi' };
+    db.prepare(`
+      INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
+      VALUES (?, ?, ?, ?, 'inbound', CURRENT_TIMESTAMP)
+    `).run(uuid(), leadId || null, email ? email.id : null, randomReply);
+
+    return { success: true, message: 'Müşteri yanıtı simüle edildi' };
   }
 }
 

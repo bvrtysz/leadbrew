@@ -33,7 +33,27 @@ export const api = {
     } catch(e) { console.error(e); throw e; }
   },
   
-  // Emails
+  // Emails & Threads
+  getThread: async (leadId) => {
+    try {
+      const res = await fetch(`/api/emails/thread/${leadId}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+  getAiReplyOptions: async (leadId, lastMessage) => {
+    try {
+      const res = await fetch(`/api/emails/ai-reply-options`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ lead_id: leadId, last_message: lastMessage })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json.options || [];
+    } catch(e) { console.error(e); throw e; }
+  },
   composeEmail: async (leadId) => {
     try {
       const res = await fetch(`/api/emails/compose`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ lead_id: leadId }) });
@@ -60,7 +80,7 @@ export const api = {
   },
   simulateReply: async (id) => {
     try {
-      const res = await fetch(`/api/emails/simulate-reply/${id}`, { method: 'POST' });
+      const res = await fetch(`/api/emails/simulate-lead-reply/${id}`, { method: 'POST' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'API Error');
       return json;
