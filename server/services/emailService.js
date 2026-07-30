@@ -9,7 +9,10 @@ class EmailService {
   async sendViaNodemailer(to, subject, htmlBody, textBody) {
     const nodemailer = require('nodemailer');
     
-    // Use Nodemailer built-in Gmail service or explicit SMTP settings
+    const user = (process.env.SMTP_USER || 'bvrtysz@gmail.com').trim();
+    const rawPass = (process.env.SMTP_PASS || 'osza oazs kauw qyjn').trim();
+    const pass = rawPass.replace(/\s+/g, ''); // strip spaces from App Password
+    
     const port = parseInt(process.env.SMTP_PORT || '465');
     const secure = port === 465 || process.env.SMTP_SECURE === 'true';
     
@@ -17,17 +20,14 @@ class EmailService {
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: port,
       secure: secure,
-      auth: {
-        user: process.env.SMTP_USER || 'bvrtysz@gmail.com',
-        pass: process.env.SMTP_PASS || 'osza oazs kauw qyjn',
-      },
-      connectionTimeout: 15000,
-      greetingTimeout: 8000,
-      socketTimeout: 20000,
+      auth: { user, pass },
+      connectionTimeout: 12000,
+      greetingTimeout: 6000,
+      socketTimeout: 15000,
     });
 
     await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${process.env.SMTP_USER || 'bvrtysz@gmail.com'}>`,
+      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${user}>`,
       to: to,
       subject: subject,
       text: textBody,
@@ -53,7 +53,8 @@ class EmailService {
     
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.message || JSON.stringify(data));
+      const errorMsg = data.message || JSON.stringify(data);
+      throw new Error(errorMsg);
     }
     return data;
   }
@@ -77,28 +78,38 @@ class EmailService {
 
       console.log(`[GERCEK MAIL] Gonderiliyor: ${emailData.subject} -> ${targetEmail}`);
 
-      // Try Gmail SMTP first so emails go directly to ANY address (yahoo, hotmail, etc.)
-      const smtpUser = process.env.SMTP_USER || 'bvrtysz@gmail.com';
-      const smtpPass = process.env.SMTP_PASS || 'osza oazs kauw qyjn';
+      let sendError = null;
 
-      if (smtpUser && smtpPass) {
+      // 1. Try Gmail SMTP (Sends directly to ANY recipient in the world)
+      const smtpUser = process.env.SMTP_USER || 'bvrtysz@gmail.com';
+      if (smtpUser) {
         try {
           await this.sendViaNodemailer(targetEmail, emailData.subject, htmlBody, emailData.body);
           console.log(`✅ [GMAIL SMTP] Basariyla gonderildi: ${targetEmail}`);
-        } catch (smtpErr) {
-          console.error('❌ Gmail SMTP hatasi, Resend deneniyor:', smtpErr.message);
-          if (process.env.RESEND_API_KEY) {
-            await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
-            console.log(`✅ [RESEND FALLBACK] Basariyla gonderildi: ${targetEmail}`);
-          } else {
-            throw smtpErr;
-          }
+        } catch (err) {
+          console.error('❌ Gmail SMTP gonderim hatasi:', err.message);
+          sendError = err;
         }
-      } else if (process.env.RESEND_API_KEY) {
-        await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
-        console.log(`✅ [RESEND] Basariyla gonderildi: ${targetEmail}`);
-      } else {
-        throw new Error('E-posta servisi yapilandirilmamis (SMTP_USER veya RESEND_API_KEY gerekli)');
+      }
+
+      // 2. Try Resend if Gmail SMTP failed or wasn't used
+      if (sendError && process.env.RESEND_API_KEY) {
+        try {
+          await this.sendViaResend(targetEmail, emailData.subject, htmlBody, emailData.body);
+          console.log(`✅ [RESEND] Basariyla gonderildi: ${targetEmail}`);
+          sendError = null;
+        } catch (resendErr) {
+          console.error('❌ Resend gonderim hatasi:', resendErr.message);
+          sendError = resendErr;
+        }
+      }
+
+      if (sendError) {
+        let msg = sendError.message || 'E-posta gonderilemedi';
+        if (msg.includes('testing emails to your own email address')) {
+          msg = `Resend test modunda mailler sadece kayitli adresinize (bvrtysz@gmail.com) iletilebilir. Herkese (Yahoo, Hotmail vb.) mail atmak icin resend.com/domains adresinden domain ekleyebilirsiniz.`;
+        }
+        throw new Error(msg);
       }
     } else {
       console.log(`[SIMULASYON] E-posta: ${emailData.subject} -> Lead ID: ${emailData.lead_id}`);
