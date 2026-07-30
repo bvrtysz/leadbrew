@@ -7,17 +7,25 @@ class EmailService {
   }
 
   async sendViaBrevo(to, subject, htmlBody, textBody) {
+    const apiKey = (process.env.BREVO_API_KEY || '').trim();
+    if (!apiKey) throw new Error('BREVO_API_KEY tanimli degil');
+
+    const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'bvrtysz@gmail.com').trim();
+    const senderName = (process.env.SMTP_FROM_NAME || 'Conbella').trim();
+
+    console.log(`[BREVO API] İstek atılıyor: ${senderEmail} -> ${to}`);
+
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'api-key': process.env.BREVO_API_KEY,
+        'api-key': apiKey,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       body: JSON.stringify({
         sender: {
-          name: process.env.SMTP_FROM_NAME || 'Conbella',
-          email: process.env.SMTP_USER || 'bvrtysz@gmail.com'
+          name: senderName,
+          email: senderEmail
         },
         to: [{ email: to }],
         subject: subject,
@@ -27,9 +35,11 @@ class EmailService {
     });
 
     const data = await res.json();
+    console.log(`[BREVO API] Yanıt (Status ${res.status}):`, JSON.stringify(data));
+
     if (!res.ok) {
-      const errorMsg = data.message || JSON.stringify(data);
-      throw new Error(`Brevo Hatası: ${errorMsg}`);
+      const errorMsg = data.message || data.code || JSON.stringify(data);
+      throw new Error(`Brevo Hatası (${res.status}): ${errorMsg}`);
     }
     return data;
   }
@@ -108,7 +118,7 @@ class EmailService {
 
       let sendError = null;
 
-      // 1. BREVO HTTP API (Highest Priority: Sends to ANY address worldwide without domain limits)
+      // 1. BREVO HTTP API (If key present)
       if (process.env.BREVO_API_KEY) {
         try {
           await this.sendViaBrevo(targetEmail, emailData.subject, htmlBody, emailData.body);
@@ -120,7 +130,7 @@ class EmailService {
         }
       }
 
-      // 2. Gmail SMTP (Secondary)
+      // 2. Gmail SMTP (If Brevo didn't run or failed)
       if (sendError !== null || !process.env.BREVO_API_KEY) {
         const smtpUser = process.env.SMTP_USER || 'bvrtysz@gmail.com';
         if (smtpUser) {
@@ -143,14 +153,14 @@ class EmailService {
           sendError = null;
         } catch (resendErr) {
           console.error('❌ Resend hatasi:', resendErr.message);
-          sendError = resendErr;
+          if (!sendError) sendError = resendErr;
         }
       }
 
       if (sendError) {
         let msg = sendError.message || 'E-posta gonderilemedi';
         if (msg.includes('testing emails to your own email address')) {
-          msg = `Resend test modunda mailler sadece kayitli adresinize iletilebilir. Brevo API anahtarinizi kontrol edin.`;
+          msg = `Resend test modunda mailler sadece kayitli adresinize iletilebilir. Brevo API anahtarinizi veya gönderici mailinizi kontrol edin.`;
         }
         throw new Error(msg);
       }
