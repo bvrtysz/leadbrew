@@ -89,6 +89,43 @@ router.post('/ai-reply-options', async (req, res) => {
   }
 });
 
+// POST /api/emails/webhook/inbound - Inbound Email Webhook (Catch incoming replies from Brevo/Resend/SendGrid)
+router.post('/webhook/inbound', (req, res) => {
+  try {
+    const db = getDb();
+    const senderEmail = req.body.sender?.email || req.body.from || req.body.email;
+    const messageText = req.body.htmlContent || req.body.text || req.body.message || req.body.subject;
+
+    if (!senderEmail || !messageText) {
+      return res.status(400).json({ error: 'E-posta veya mesaj gövdesi bulunamadı' });
+    }
+
+    // Find lead by email
+    const lead = db.prepare('SELECT * FROM leads WHERE LOWER(email) = LOWER(?)').get(senderEmail.trim());
+
+    if (lead) {
+      // Update lead status to replied
+      db.prepare("UPDATE leads SET status = 'replied' WHERE id = ?").run(lead.id);
+
+      // Insert into conversations
+      const newId = uuid();
+      db.prepare(`
+        INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
+        VALUES (?, ?, NULL, ?, 'inbound', CURRENT_TIMESTAMP)
+      `).run(newId, lead.id, messageText);
+
+      console.log(`📥 [INBOUND WEBHOOK] Gelen yanıt kaydedildi: ${senderEmail} (Lead: ${lead.name})`);
+      return res.json({ success: true, message: 'Gelen yanıt kaydedildi', lead_id: lead.id });
+    } else {
+      console.log(`⚠️ [INBOUND WEBHOOK] Kayıtsız adresten yanıt geldi: ${senderEmail}`);
+      return res.json({ success: true, message: 'Lead sistemde kayıtlı değil' });
+    }
+  } catch (error) {
+    console.error('Inbound webhook hatası:', error);
+    res.status(500).json({ error: 'Webhook işlenemedi' });
+  }
+});
+
 // POST /api/emails/compose - AI-generate personalized initial email
 router.post('/compose', async (req, res) => {
   try {
@@ -138,7 +175,22 @@ router.post('/simulate-lead-reply/:leadId', (req, res) => {
   try {
     const leadId = req.params.leadId;
     const result = emailService.simulateReply(null);
-    res.json(result);
+    if (leadId) {
+      const db = getDb();
+      const uuid = require('uuid').v4;
+      db.prepare("UPDATE leads SET status = 'replied' WHERE id = ?").run(leadId);
+      const sampleReplies = [
+        'Merhaba, sunduğunuz çay ve kahve teklifi ilgimizi çekti. Fiyat listesini ve numune talep formunu gönderebilir misiniz?',
+        'İyi günler, önümüzdeki hafta salı günü 14:00 için kısa bir tanıtım toplantısı ayarlayabiliriz. Saygılarımla.',
+        'Merhaba, ürün kataloğunuzu inceledik. Toptan alımda ödeme koşullarınız nedir?'
+      ];
+      const randomReply = sampleReplies[Math.floor(Math.random() * sampleReplies.length)];
+      db.prepare(`
+        INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
+        VALUES (?, ?, NULL, ?, 'inbound', CURRENT_TIMESTAMP)
+      `).run(uuid(), leadId, randomReply);
+    }
+    res.json({ success: true, message: 'Müşteri yanıtı simüle edildi' });
   } catch (error) {
     res.status(500).json({ error: 'Sunucu hatası' });
   }
