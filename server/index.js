@@ -21,7 +21,7 @@ app.use('/api/campaigns', campaignsRouter);
 app.use('/api/stats', statsRouter);
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'LeadBrew API calisiyor', mode: process.env.EMAIL_MODE || 'SIMULATION' });
+  res.json({ status: 'ok', message: 'Conbella API calisiyor', mode: process.env.EMAIL_MODE || 'SIMULATION' });
 });
 
 // Serve React frontend build if dist folder exists
@@ -46,7 +46,7 @@ initDb().then(() => {
   followUpService.start();
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`LeadBrew Sunucu 0.0.0.0:${port} üzerinde çalışıyor`);
+    console.log(`Conbella Sunucu 0.0.0.0:${port} üzerinde çalışıyor`);
     console.log(`Mod: ${process.env.EMAIL_MODE || 'SIMULATION'}`);
   });
 }).catch(err => {

@@ -8,7 +8,7 @@ const Sidebar = () => {
     <aside className="sidebar">
       <div className="sidebar-header">
         <Coffee className="brand-icon" size={28} />
-        <h2 className="brand-title">LeadBrew</h2>
+        <h2 className="brand-title">Conbella</h2>
       </div>
 
       <nav className="sidebar-nav">

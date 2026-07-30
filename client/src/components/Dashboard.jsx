@@ -76,7 +76,7 @@ const Dashboard = () => {
       <header className="flex-between dashboard-header">
         <div>
           <h1 className="text-h1">Genel Bakış</h1>
-          <p className="text-secondary">LeadBrew satış otomasyonu özet istatistikleriniz.</p>
+          <p className="text-secondary">Conbella satış otomasyonu özet istatistikleriniz.</p>
         </div>
         <button className="btn btn-primary">Yeni Kampanya</button>
       </header>

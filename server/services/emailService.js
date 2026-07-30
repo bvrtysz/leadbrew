@@ -14,7 +14,7 @@ class EmailService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'LeadBrew <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM || 'Conbella <onboarding@resend.dev>',
         to: [to],
         subject: subject,
         html: htmlBody,
@@ -54,7 +54,7 @@ class EmailService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'LeadBrew <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM || 'Conbella <onboarding@resend.dev>',
         to: [to],
         subject: subject,
         html: htmlBody,
@@ -86,7 +86,7 @@ class EmailService {
     });
 
     await transporter.sendMail({
-      from: `"${process.env.SMTP_FROM_NAME || 'LeadBrew'}" <${process.env.SMTP_USER}>`,
+      from: `"${process.env.SMTP_FROM_NAME || 'Conbella'}" <${process.env.SMTP_USER}>`,
       to: to,
       subject: subject,
       text: textBody,
