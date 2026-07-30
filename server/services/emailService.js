@@ -24,8 +24,45 @@ class EmailService {
     
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.message || JSON.stringify(data));
+      // Catch Resend testing domain restriction (sending to non-owner email)
+      const errorMsg = data.message || JSON.stringify(data);
+      if (errorMsg.includes('testing emails to your own email address')) {
+        const ownerEmail = process.env.SMTP_USER || 'bvrtysz@gmail.com';
+        console.log(`⚠️ Resend Test Modu Kısıtlaması: Mail ${ownerEmail} adresine yönlendiriliyor... (Hedef: ${to})`);
+        
+        const testSubject = `[Test Modu -> ${to}] ${subject}`;
+        const testHtml = `
+          <div style="background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:12px; border-radius:6px; margin-bottom:16px; font-family:sans-serif; font-size:13px;">
+            ⚠️ <strong>Resend Test Modu Bilgilendirmesi:</strong> Resend ücretsiz hesabı varsayılan olarak mailleri hesap sahibine iletir.<br>
+            <strong>Asıl Hedef Alıcı:</strong> ${to}
+          </div>
+          ${htmlBody}
+        `;
+
+        return await this.sendViaResendDirect(ownerEmail, testSubject, testHtml, textBody);
+      }
+      throw new Error(errorMsg);
     }
+    return data;
+  }
+
+  async sendViaResendDirect(to, subject, htmlBody, textBody) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM || 'LeadBrew <onboarding@resend.dev>',
+        to: [to],
+        subject: subject,
+        html: htmlBody,
+        text: textBody,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || JSON.stringify(data));
     return data;
   }
 
