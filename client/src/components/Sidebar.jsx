@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Search, Mail, FolderOpen, MessageSquare, Settings, Coffee } from 'lucide-react';
+import { LayoutDashboard, Search, Mail, FolderOpen, MessageSquare, Calendar, Settings, Coffee } from 'lucide-react';
 import './Sidebar.css';
 
 const Sidebar = () => {
@@ -31,6 +31,10 @@ const Sidebar = () => {
         <NavLink to="/conversations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <MessageSquare size={20} />
           <span>Konuşmalar</span>
+        </NavLink>
+        <NavLink to="/appointments" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Calendar size={20} />
+          <span>Randevular</span>
         </NavLink>
       </nav>
 

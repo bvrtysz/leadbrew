@@ -45,6 +45,83 @@ class AiService {
       }
     ];
   }
+
+  async analyzeAppointmentIntent(emailBody) {
+    if (!emailBody) return { isAppointment: false };
+
+    const text = emailBody.toLowerCase();
+    const keywords = ['randevu', 'toplantı', 'görüşme', 'görüşelim', 'saat', 'salı', 'çarşamba', 'perşembe', 'cuma', 'pazartesi', 'bugün', 'yarın', 'gelebilirim', 'uygun'];
+    const hasKeyword = keywords.some(k => text.includes(k));
+
+    if (!hasKeyword) return { isAppointment: false };
+
+    // Extract proposed time/date using standard regex patterns or fallbacks
+    const dateMatch = text.match(/(\d{1,2})[\.\/-](\d{1,2})[\.\/-](\d{4})/);
+    const timeMatch = text.match(/(\d{1,2})[:\.](\d{2})/);
+
+    let targetDate = new Date();
+    if (text.includes('yarın')) {
+      targetDate.setDate(targetDate.getDate() + 1);
+    } else if (text.includes('pazartesi')) {
+      targetDate.setDate(targetDate.getDate() + ((1 + 7 - targetDate.getDay()) % 7 || 7));
+    } else if (text.includes('salı')) {
+      targetDate.setDate(targetDate.getDate() + ((2 + 7 - targetDate.getDay()) % 7 || 7));
+    } else if (text.includes('çarşamba')) {
+      targetDate.setDate(targetDate.getDate() + ((3 + 7 - targetDate.getDay()) % 7 || 7));
+    } else if (text.includes('perşembe')) {
+      targetDate.setDate(targetDate.getDate() + ((4 + 7 - targetDate.getDay()) % 7 || 7));
+    } else if (text.includes('cuma')) {
+      targetDate.setDate(targetDate.getDate() + ((5 + 7 - targetDate.getDay()) % 7 || 7));
+    } else if (dateMatch) {
+      const day = parseInt(dateMatch[1]);
+      const month = parseInt(dateMatch[2]) - 1;
+      const year = parseInt(dateMatch[3]);
+      targetDate = new Date(year, month, day);
+    } else {
+      targetDate.setDate(targetDate.getDate() + 1); // Default to tomorrow
+    }
+
+    let hour = 14; // Default to 14:00 if not specified
+    let minute = 0;
+    if (timeMatch) {
+      hour = parseInt(timeMatch[1]);
+      minute = parseInt(timeMatch[2]);
+    } else {
+      const simpleHour = text.match(/saat\s*(\d{1,2})/);
+      if (simpleHour) hour = parseInt(simpleHour[1]);
+    }
+
+    targetDate.setHours(hour, minute, 0, 0);
+
+    const startTimeStr = targetDate.toISOString().replace('T', ' ').substring(0, 16);
+    const endDate = new Date(targetDate.getTime() + 30 * 60 * 1000); // 30 min duration
+    const endTimeStr = endDate.toISOString().replace('T', ' ').substring(0, 16);
+
+    return {
+      isAppointment: true,
+      proposedStartTime: startTimeStr,
+      proposedEndTime: endTimeStr,
+      summary: `${hour}:${minute < 10 ? '0' + minute : minute} Randevu Talebi`
+    };
+  }
+
+  async generateConflictEmail(leadName, companyName, requestedTime, availableOptions) {
+    const firstName = (leadName || 'Yetkili').split(' ')[0];
+    const optionsFormatted = availableOptions.map(opt => `• ${opt}`).join('\n');
+
+    const subject = `Re: Toplantı Randevusu - Alternatif Saat Önerisi`;
+    const body = `Sayın ${firstName} Bey/Hanım,\n\n${companyName || 'Şirketiniz'} ile yapacağımız görüşme talebiniz için teşekkür ederiz.\n\nBelirttiğiniz ${requestedTime} zaman diliminde takvimimde önceden planlanmış bir randevum/meşguliyetim bulunmaktadır.\n\nSize daha iyi hizmet verebilmek adına aşağıdaki alternatif zaman dilimlerinden biri sizin için uygun olur mu?\n\n${optionsFormatted}\n\nUygun olduğunuz saati iletirseniz randevunuzu derhal onaylayabilirim.\n\nİyi çalışmalar dilerim,\nConbella Ekibi`;
+
+    return { subject, body };
+  }
+
+  async generateConfirmationEmail(leadName, companyName, confirmedTime) {
+    const firstName = (leadName || 'Yetkili').split(' ')[0];
+    const subject = `Re: Randevunuz Onaylandı - ${confirmedTime}`;
+    const body = `Sayın ${firstName} Bey/Hanım,\n\n${companyName || 'Şirketiniz'} ile görüşme randevunuz ${confirmedTime} tarihi için başarıyla takvimimize eklenmiş ve onaylanmıştır.\n\nToplantı saatinde görüşmek üzere, iyi çalışmalar dileriz.\n\nSaygılarımızla,\nConbella Ekibi`;
+
+    return { subject, body };
+  }
 }
 
 module.exports = new AiService();

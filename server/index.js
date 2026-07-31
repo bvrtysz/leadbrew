@@ -14,11 +14,13 @@ const leadsRouter = require('./routes/leads');
 const emailsRouter = require('./routes/emails');
 const campaignsRouter = require('./routes/campaigns');
 const statsRouter = require('./routes/stats');
+const appointmentsRouter = require('./routes/appointments');
 
 app.use('/api/leads', leadsRouter);
 app.use('/api/emails', emailsRouter);
 app.use('/api/campaigns', campaignsRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/appointments', appointmentsRouter);
 
 // Inbox check endpoint
 const inboxService = require('./services/inboxService');

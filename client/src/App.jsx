@@ -6,6 +6,7 @@ import LeadFinder from './components/LeadFinder';
 import EmailComposer from './components/EmailComposer';
 import CampaignManager from './components/CampaignManager';
 import ConversationView from './components/ConversationView';
+import AppointmentsView from './components/AppointmentsView';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/compose/:leadId" element={<EmailComposer />} />
             <Route path="/campaigns" element={<CampaignManager />} />
             <Route path="/conversations" element={<ConversationView />} />
+            <Route path="/appointments" element={<AppointmentsView />} />
           </Routes>
         </main>
       </div>

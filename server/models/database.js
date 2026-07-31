@@ -11,7 +11,9 @@ let store = {
   leads: [],
   campaigns: [],
   emails: [],
-  conversations: []
+  conversations: [],
+  appointments: [],
+  busy_slots: []
 };
 
 function loadStore() {
@@ -216,6 +218,25 @@ class PureDb {
       return result;
     }
 
+    // SELECT FROM appointments
+    if (sqlUpper.includes('FROM APPOINTMENTS')) {
+      if (!store.appointments) store.appointments = [];
+      let result = [...store.appointments];
+      if (params && params[0]) {
+        result = result.filter(a => a.id === params[0] || a.lead_id === params[0]);
+      }
+      result.sort((a, b) => new Date(a.start_time || 0) - new Date(b.start_time || 0));
+      return result;
+    }
+
+    // SELECT FROM busy_slots
+    if (sqlUpper.includes('FROM BUSY_SLOTS')) {
+      if (!store.busy_slots) store.busy_slots = [];
+      let result = [...store.busy_slots];
+      result.sort((a, b) => new Date(a.start_time || 0) - new Date(b.start_time || 0));
+      return result;
+    }
+
     return [];
   }
 
@@ -354,6 +375,60 @@ class PureDb {
         created_at: now
       };
       store.conversations.push(newConv);
+    }
+
+    // INSERT INTO appointments
+    else if (sqlUpper.includes('INSERT INTO APPOINTMENTS')) {
+      if (!store.appointments) store.appointments = [];
+      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const newAppt = {
+        id: params[0] || uuid(),
+        lead_id: params[1] || null,
+        title: params[2] || 'Toplantı',
+        start_time: params[3] || '',
+        end_time: params[4] || '',
+        status: params[5] || 'confirmed',
+        notes: params[6] || '',
+        created_at: now
+      };
+      store.appointments.push(newAppt);
+    }
+
+    // UPDATE appointments
+    else if (sqlUpper.includes('UPDATE APPOINTMENTS')) {
+      if (!store.appointments) store.appointments = [];
+      const status = params[0];
+      const id = params[1];
+      const appt = store.appointments.find(a => a.id === id);
+      if (appt) appt.status = status;
+    }
+
+    // DELETE FROM appointments
+    else if (sqlUpper.includes('DELETE FROM APPOINTMENTS')) {
+      if (!store.appointments) store.appointments = [];
+      const id = params[0];
+      store.appointments = store.appointments.filter(a => a.id !== id);
+    }
+
+    // INSERT INTO busy_slots
+    else if (sqlUpper.includes('INSERT INTO BUSY_SLOTS')) {
+      if (!store.busy_slots) store.busy_slots = [];
+      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const newSlot = {
+        id: params[0] || uuid(),
+        title: params[1] || 'Dolu / Mesai Dışı',
+        start_time: params[2] || '',
+        end_time: params[3] || '',
+        created_at: now
+      };
+      store.busy_slots.push(newSlot);
+    }
+
+    // DELETE FROM busy_slots
+    else if (sqlUpper.includes('DELETE FROM BUSY_SLOTS')) {
+      if (!store.busy_slots) store.busy_slots = [];
+      const id = params[0];
+      store.busy_slots = store.busy_slots.filter(b => b.id !== id);
     }
   }
 }

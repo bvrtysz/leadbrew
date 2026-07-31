@@ -91,6 +91,10 @@ class InboxService {
 
             console.log(`📥 [INBOX] Yeni gelen yanit: ${fromAddr} (Lead: ${lead.name}) - Konu: ${subject}`);
             newMessages++;
+
+            // Process for AI appointment detection & conflict checking
+            const appointmentService = require('./appointmentService');
+            appointmentService.processIncomingEmail(lead, textBody);
           } catch (parseErr) {
             console.error('[INBOX] Mesaj parse hatasi:', parseErr.message);
           }
@@ -113,11 +117,11 @@ class InboxService {
     return { success: true, newMessages, message: `${newMessages} yeni mesaj bulundu ve kaydedildi` };
   }
 
-  startPeriodicCheck(intervalMinutes = 5) {
+  startPeriodicCheck(intervalMinutes = 2) {
     console.log(`[INBOX] Otomatik gelen kutusu kontrolu baslatildi (her ${intervalMinutes} dakika)`);
     
-    // First check after 30 seconds
-    setTimeout(() => this.checkInbox(), 30000);
+    // First check after 10 seconds
+    setTimeout(() => this.checkInbox(), 10000);
     
     // Then check periodically
     setInterval(() => this.checkInbox(), intervalMinutes * 60 * 1000);

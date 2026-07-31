@@ -22,12 +22,23 @@ const ConversationView = () => {
 
   useEffect(() => {
     fetchConversations();
-    // Auto-refresh every 60 seconds
-    autoRefreshRef.current = setInterval(() => {
+    // Live background polling every 10 seconds for real-time sync
+    autoRefreshRef.current = setInterval(async () => {
       fetchConversations();
       if (activeId) fetchThread(activeId);
-    }, 60000);
-    return () => clearInterval(autoRefreshRef.current);
+    }, 10000);
+
+    // Auto-trigger Gmail IMAP check in background every 30 seconds
+    const inboxCheckInterval = setInterval(async () => {
+      try {
+        await api.checkInbox();
+      } catch(e) {}
+    }, 30000);
+
+    return () => {
+      clearInterval(autoRefreshRef.current);
+      clearInterval(inboxCheckInterval);
+    };
   }, []);
 
   useEffect(() => {

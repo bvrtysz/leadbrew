@@ -139,5 +139,65 @@ export const api = {
       if (!res.ok) throw new Error(json.error || 'API Error');
       return json;
     } catch(e) { console.error(e); throw e; }
+  },
+
+  // Appointments
+  getAppointments: async () => {
+    try {
+      const res = await fetch('/api/appointments');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+  createAppointment: async (data) => {
+    try {
+      const res = await fetch('/api/appointments', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+  updateAppointmentStatus: async (id, status) => {
+    try {
+      const res = await fetch(`/api/appointments/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+  deleteAppointment: async (id) => {
+    try {
+      const res = await fetch(`/api/appointments/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+
+  // Busy Slots
+  getBusySlots: async () => {
+    try {
+      const res = await fetch('/api/appointments/busy-slots');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+  createBusySlot: async (data) => {
+    try {
+      const res = await fetch('/api/appointments/busy-slots', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
+  },
+  deleteBusySlot: async (id) => {
+    try {
+      const res = await fetch(`/api/appointments/busy-slots/${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
   }
 };
