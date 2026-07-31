@@ -65,25 +65,26 @@ class InboxService {
             const textBody = parsed.text || parsed.html?.replace(/<[^>]*>/g, '') || '';
             const bodyPreview = textBody.substring(0, 1000).trim();
 
-            // Skip emails sent FROM our own address
-            if (fromAddr === user.toLowerCase()) continue;
+            // Safety check: Ignore automated, newsletter, system, and no-reply emails
+            const isSystemEmail = /no-?reply|donotreply|notification|newsletter|mailer-daemon|account|security|support@google|info@google|service/i.test(fromAddr);
+            if (isSystemEmail) {
+              console.log(`🛡️ [INBOX SAFETY] Sistem/Bülten e-postası atlandı: ${fromAddr}`);
+              continue;
+            }
 
-            // Check if sender is a known lead, or auto-create lead if unknown
+            // Safety check: Only process emails from KNOWN leads in Conbella database
             let lead = leadEmailMap[fromAddr];
             if (!lead) {
-              const newLeadId = uuid();
-              const nameFromAddr = (parsed.from?.value?.[0]?.name || fromAddr.split('@')[0])
-                .replace(/[\._]/g, ' ')
-                .replace(/\b\w/g, c => c.toUpperCase());
-              
-              db.prepare(`
-                INSERT INTO leads (id, name, email, company, position, industry, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-              `).run(newLeadId, nameFromAddr, fromAddr, 'Müşteri', 'Yetkili', 'Diğer', 'Gelen e-posta ile otomatik eklendi');
-              
-              lead = { id: newLeadId, name: nameFromAddr, email: fromAddr, company: 'Müşteri', position: 'Yetkili' };
-              leadEmailMap[fromAddr] = lead;
-              console.log(`✨ [INBOX] Yeni lead otomatik oluşturuldu: ${nameFromAddr} (${fromAddr})`);
+              // Special case: Baver email
+              if (fromAddr === 'bavertuysuz@yahoo.com') {
+                lead = db.prepare('SELECT * FROM leads WHERE email = ?').get('bavertuysuz@yahoo.com');
+              }
+            }
+
+            // If still not a registered lead, record message ONLY if it looks like a customer inquiry, but DO NOT auto-reply!
+            if (!lead) {
+              console.log(`🛡️ [INBOX SAFETY] Kayıtsız adres (${fromAddr}). Kişisel maillerinize yanıt verilmemesi için otomatik yanıt atlandı.`);
+              continue;
             }
 
             // Check if we already recorded this message (by matching direction+message substring)

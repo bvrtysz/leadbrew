@@ -135,14 +135,18 @@ class AppointmentService {
   // Process incoming email body for appointment requests or smart auto-replies
   async processIncomingEmail(lead, emailBody) {
     try {
+      if (!lead || !lead.email) return;
+
       const intent = await aiService.analyzeAppointmentIntent(emailBody);
       
       if (!intent.isAppointment) {
-        // Not an appointment request -> Generate a warm, human smart reply and send automatically!
-        console.log(`🤖 [AUTO-REPLY AI] Genel e-posta yanıtı üretiliyor: ${lead.name} (${lead.email})`);
+        // Safety check: Only auto-reply if the incoming message directly asks about prices/samples/catalog or is a response to our sales email
+        const lower = (emailBody || '').toLowerCase();
+        const asksProductInfo = /fiyat|katalog|ücret|maliyet|toptan|numune|tadım|örnek|teklif|sipariş|detay|bilgi|kahve|çay/i.test(lower);
         
-        const smartReply = await aiService.generateSmartHumanReply(lead, emailBody);
-        if (lead.email) {
+        if (asksProductInfo) {
+          console.log(`🤖 [AUTO-REPLY AI] Ürün/Fiyat/Numune talebi algılandı, yanıt iletiliyor: ${lead.name} (${lead.email})`);
+          const smartReply = await aiService.generateSmartHumanReply(lead, emailBody);
           await emailService.sendEmail({
             lead_id: lead.id,
             lead_email: lead.email,
@@ -150,6 +154,8 @@ class AppointmentService {
             body: smartReply.body
           });
           console.log(`✅ [AUTO-REPLY AI] Yanıt e-postası başarıyla gönderildi: ${lead.email}`);
+        } else {
+          console.log(`🛡️ [AUTO-REPLY SAFETY] Genel mesaj, güvenliğiniz için otomatik yanıt atlandı: ${lead.email}`);
         }
         return;
       }
