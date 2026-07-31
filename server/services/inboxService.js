@@ -41,12 +41,12 @@ class InboxService {
       const lock = await client.getMailboxLock('INBOX');
 
       try {
-        // Search for recent unseen emails (last 3 days)
+        // Search for recent emails from the last 2 days (read or unread)
         const since = new Date();
-        since.setDate(since.getDate() - 3);
+        since.setDate(since.getDate() - 2);
 
         const messages = client.fetch(
-          { since, seen: false },
+          { since },
           { source: true, envelope: true, uid: true }
         );
 
@@ -132,14 +132,14 @@ class InboxService {
     return { success: true, newMessages, message: `${newMessages} yeni mesaj bulundu ve kaydedildi` };
   }
 
-  startPeriodicCheck(intervalMinutes = 2) {
-    console.log(`[INBOX] Otomatik gelen kutusu kontrolu baslatildi (her ${intervalMinutes} dakika)`);
+  startPeriodicCheck(intervalSeconds = 30) {
+    console.log(`[INBOX] Otomatik gelen kutusu kontrolü başlatıldı (her ${intervalSeconds} saniyede bir)`);
     
-    // First check after 10 seconds
-    setTimeout(() => this.checkInbox(), 10000);
+    // First check immediately after 3 seconds
+    setTimeout(() => this.checkInbox(), 3000);
     
-    // Then check periodically
-    setInterval(() => this.checkInbox(), intervalMinutes * 60 * 1000);
+    // Then check periodically every 30 seconds
+    setInterval(() => this.checkInbox(), intervalSeconds * 1000);
   }
 }
 

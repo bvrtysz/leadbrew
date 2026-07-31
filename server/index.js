@@ -59,8 +59,8 @@ initDb().then(() => {
   const followUpService = require('./services/followUpService');
   followUpService.start();
 
-  // Start periodic Gmail inbox checking (every 5 minutes)
-  inboxService.startPeriodicCheck(5);
+  // Start periodic Gmail inbox checking (every 30 seconds)
+  inboxService.startPeriodicCheck(30);
 
   app.listen(port, '0.0.0.0', () => {
     console.log(`Conbella Sunucu 0.0.0.0:${port} üzerinde çalışıyor`);
