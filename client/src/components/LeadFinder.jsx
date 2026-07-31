@@ -172,15 +172,21 @@ const LeadFinder = () => {
       const serverLeads = await api.getLeads({});
       const localLeads = getLocalLeads();
       
-      // Combine server leads with local leads, ensuring no duplicates by ID
-      const combined = [...localLeads];
-      (serverLeads || []).forEach(sl => {
-        if (!combined.some(cl => cl.id === sl.id)) {
-          combined.push(sl);
-        }
-      });
+      // Remove local leads that already exist on server (matched by email)
+      const serverEmails = new Set((serverLeads || []).map(l => l.email?.toLowerCase()));
+      const uniqueLocalLeads = localLeads.filter(ll => 
+        !serverEmails.has(ll.email?.toLowerCase())
+      );
+      
+      // Update localStorage to only keep truly local-only leads
+      if (uniqueLocalLeads.length !== localLeads.length) {
+        localStorage.setItem('conbella_local_leads', JSON.stringify(uniqueLocalLeads));
+      }
 
+      // Combine: local-only leads first, then server leads
+      const combined = [...uniqueLocalLeads, ...(serverLeads || [])];
       setLeads(combined);
+      setError(false);
     } catch (err) {
       console.error(err);
       const localLeads = getLocalLeads();
@@ -203,14 +209,13 @@ const LeadFinder = () => {
     setError(false);
     try {
       const results = await api.searchLeads({ industry, position, city });
+      const serverLeads = results?.leads || results || [];
       const localLeads = getLocalLeads();
-      const combined = [...localLeads];
-      (results || []).forEach(sl => {
-        if (!combined.some(cl => cl.id === sl.id)) {
-          combined.push(sl);
-        }
-      });
-      setLeads(combined);
+      const serverEmails = new Set(serverLeads.map(l => l.email?.toLowerCase()));
+      const uniqueLocalLeads = localLeads.filter(ll => 
+        !serverEmails.has(ll.email?.toLowerCase())
+      );
+      setLeads([...uniqueLocalLeads, ...serverLeads]);
     } catch (err) {
       console.error(err);
       setError(true);
@@ -222,7 +227,10 @@ const LeadFinder = () => {
   const handleAddLead = async (formData) => {
     try {
       const created = await api.createLead(formData);
-      saveLocalLead(created || { ...formData, id: Date.now().toString(), status: 'new' });
+      if (created && created.id) {
+        // Server returned the lead with correct UUID - save this to localStorage
+        saveLocalLead(created);
+      }
       showToast(`${formData.name} başarıyla eklendi!`);
       setShowAddModal(false);
       await fetchLeads();
@@ -230,7 +238,7 @@ const LeadFinder = () => {
       // Even if API fails, save locally so user work is never lost!
       const fallbackLead = { ...formData, id: 'local_' + Date.now(), status: 'new', created_at: new Date().toISOString() };
       saveLocalLead(fallbackLead);
-      showToast(`${formData.name} kaydedildi!`);
+      showToast(`${formData.name} yerel olarak kaydedildi (sunucu bağlantısı yok).`, 'error');
       setShowAddModal(false);
       await fetchLeads();
     }

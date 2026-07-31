@@ -30,11 +30,27 @@ const EmailComposer = () => {
     if (leadId) {
       setLoading(true);
       api.getLead(leadId).then(data => {
-        setLead(data);
-        setRecipientEmail(data.email || '');
+        if (data && data.email) {
+          setLead(data);
+          setRecipientEmail(data.email || '');
+        } else {
+          throw new Error('Lead bulunamadi');
+        }
       }).catch(err => {
         console.error(err);
-        showToast('Alıcı bilgileri yüklenemedi.', 'error');
+        // Fallback: try localStorage
+        try {
+          const localLeads = JSON.parse(localStorage.getItem('conbella_local_leads') || '[]');
+          const localLead = localLeads.find(l => l.id === leadId);
+          if (localLead) {
+            setLead(localLead);
+            setRecipientEmail(localLead.email || '');
+          } else {
+            showToast('Alıcı bilgileri yüklenemedi. Lütfen Lead Bul sayfasından tekrar ekleyin.', 'error');
+          }
+        } catch(e) {
+          showToast('Alıcı bilgileri yüklenemedi.', 'error');
+        }
       }).finally(() => setLoading(false));
     }
   }, [leadId]);
