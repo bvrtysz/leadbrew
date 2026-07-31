@@ -436,29 +436,36 @@ class PureDb {
 const dbInstance = new PureDb();
 
 function seedInitialData() {
-  if (store.leads.length === 0) {
-    console.log('Ornek veriler ekleniyor...');
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    store.leads = [
+  const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  
+  // Ensure Baver Tuysuz is always present
+  const baverExists = store.leads.some(l => l.email && l.email.toLowerCase() === 'bavertuysuz@yahoo.com');
+  if (!baverExists) {
+    store.leads.unshift({
+      id: uuid(),
+      name: 'Baver Tüysüz',
+      email: 'bavertuysuz@yahoo.com',
+      company: 'Tuysuz Ltd',
+      position: 'Genel Müdür',
+      industry: 'Otelcilik',
+      status: 'contacted',
+      created_at: now
+    });
+  }
+
+  if (store.leads.length <= 1) {
+    console.log('Örnek veriler ekleniyor...');
+    store.leads.push(
       { id: uuid(), name: 'Ahmet Yilmaz', email: 'ahmet.yilmaz@grandhotelistanbul.com', company: 'Grand Hotel Istanbul', position: 'Genel Mudur', industry: 'Otelcilik', status: 'new', created_at: now },
       { id: uuid(), name: 'Ayse Kaya', email: 'ayse.kaya@lezzetrestoran.com', company: 'Lezzet Restoranlari', position: 'Satin Alma Muduru', industry: 'Restoran', status: 'new', created_at: now },
       { id: uuid(), name: 'Mehmet Demir', email: 'mehmet.demir@kahvedukkani.com.tr', company: 'Kahve Dukkani Zinciri', position: 'Isletme Muduru', industry: 'Kafe', status: 'new', created_at: now },
       { id: uuid(), name: 'Fatma Celik', email: 'fatma.celik@kurumsalofisim.com', company: 'Kurumsal Ofis AS', position: 'Operasyon Muduru', industry: 'Kurumsal Ofis', status: 'new', created_at: now },
       { id: uuid(), name: 'Mustafa Sahin', email: 'mustafa.sahin@elitcatering.com', company: 'Elit Catering', position: 'F&B Muduru', industry: 'Catering', status: 'new', created_at: now },
       { id: uuid(), name: 'Emre Yildiz', email: 'emre.yildiz@techcorp.com.tr', company: 'TechCorp Turkiye', position: 'Ofis Yoneticisi', industry: 'Kurumsal Ofis', status: 'new', created_at: now },
-      { id: uuid(), name: 'Zeynep Ozturk', email: 'zeynep.ozturk@boutiquehotel.com', company: 'Boutique Hotel', position: 'Genel Mudur', industry: 'Otelcilik', status: 'new', created_at: now },
-      { id: uuid(), name: 'Ali Kilic', email: 'ali.kilic@gurmerestoran.com', company: 'Gurme Restoran', position: 'Mutfak Sefi', industry: 'Restoran', status: 'new', created_at: now },
-      { id: uuid(), name: 'Burcu Arslan', email: 'burcu.arslan@trendycafe.com', company: 'Trendy Cafe', position: 'Isletme Sahibi', industry: 'Kafe', status: 'new', created_at: now },
-      { id: uuid(), name: 'Cem Erdogan', email: 'cem.erdogan@megaavm.com', company: 'Mega AVM Yonetimi', position: 'Satin Alma Sorumlusu', industry: 'Perakende', status: 'new', created_at: now },
-      { id: uuid(), name: 'Deniz Cetin', email: 'deniz.cetin@startupturkey.com', company: 'Startup Turkiye', position: 'IK Muduru', industry: 'Kurumsal Ofis', status: 'new', created_at: now },
-      { id: uuid(), name: 'Eren Polat', email: 'eren.polat@luxuryresort.com', company: 'Luxury Resort Antalya', position: 'F&B Direktoru', industry: 'Otelcilik', status: 'new', created_at: now },
-      { id: uuid(), name: 'Gizem Can', email: 'gizem.can@coffeeshop.com.tr', company: 'Local Coffee Shop', position: 'Kurucu', industry: 'Kafe', status: 'new', created_at: now },
-      { id: uuid(), name: 'Hakan Korkmaz', email: 'hakan.korkmaz@anadolulezzetleri.com', company: 'Anadolu Lezzetleri', position: 'Satin Alma Muduru', industry: 'Restoran', status: 'new', created_at: now },
-      { id: uuid(), name: 'Ipek Sen', email: 'ipek.sen@eventmanagement.com', company: 'Event Management Co', position: 'Operasyon Direktoru', industry: 'Catering', status: 'new', created_at: now }
-    ];
-    saveStore();
-    console.log('15 ornek lead basariyla eklendi.');
+      { id: uuid(), name: 'Zeynep Ozturk', email: 'zeynep.ozturk@boutiquehotel.com', company: 'Boutique Hotel', position: 'Genel Mudur', industry: 'Otelcilik', status: 'new', created_at: now }
+    );
   }
+  saveStore();
 }
 
 async function initDb() {

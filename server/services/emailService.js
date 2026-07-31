@@ -183,14 +183,20 @@ class EmailService {
     );
 
     // Save to conversations history & update lead status
-    if (emailData.lead_id) {
-      db.prepare("UPDATE leads SET status = 'contacted' WHERE id = ?").run(emailData.lead_id);
+    let leadId = emailData.lead_id;
+    if (!leadId && targetEmail) {
+      const l = db.prepare('SELECT id FROM leads WHERE email = ?').get(targetEmail);
+      if (l) leadId = l.id;
+    }
+
+    if (leadId) {
+      db.prepare("UPDATE leads SET status = 'contacted' WHERE id = ?").run(leadId);
       
       const uuid = require('uuid').v4;
       db.prepare(`
         INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `).run(uuid(), emailData.lead_id, emailData.id, emailData.body, 'outbound');
+      `).run(uuid(), leadId, emailData.id || null, emailData.body, 'outbound');
     }
 
     return {

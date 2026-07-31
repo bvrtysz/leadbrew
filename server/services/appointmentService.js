@@ -132,11 +132,27 @@ class AppointmentService {
     return available.length > 0 ? available : ['Önümüzdeki İş Günü Saat 14:00', 'Önümüzdeki İş Günü Saat 16:00'];
   }
 
-  // Process incoming email body for appointment requests
+  // Process incoming email body for appointment requests or smart auto-replies
   async processIncomingEmail(lead, emailBody) {
     try {
       const intent = await aiService.analyzeAppointmentIntent(emailBody);
-      if (!intent.isAppointment) return;
+      
+      if (!intent.isAppointment) {
+        // Not an appointment request -> Generate a warm, human smart reply and send automatically!
+        console.log(`🤖 [AUTO-REPLY AI] Genel e-posta yanıtı üretiliyor: ${lead.name} (${lead.email})`);
+        
+        const smartReply = await aiService.generateSmartHumanReply(lead, emailBody);
+        if (lead.email) {
+          await emailService.sendEmail({
+            lead_id: lead.id,
+            lead_email: lead.email,
+            subject: smartReply.subject,
+            body: smartReply.body
+          });
+          console.log(`✅ [AUTO-REPLY AI] Yanıt e-postası başarıyla gönderildi: ${lead.email}`);
+        }
+        return;
+      }
 
       console.log(`📅 [APPOINTMENT AI] Randevu talebi algılandı: ${lead.name} (${intent.proposedStartTime})`);
 
@@ -150,7 +166,7 @@ class AppointmentService {
           intent.proposedStartTime,
           intent.proposedEndTime,
           'confirmed',
-          `Gelen e-posta üzerinden AI tarafından otomatik oluşturuldu: "${emailBody.substring(0, 100)}..."`
+          `Gelen e-posta üzerinden otomatik oluşturuldu: "${emailBody.substring(0, 100)}..."`
         );
 
         console.log(`✅ [APPOINTMENT AI] Randevu onaylandı: ${lead.name} - ${intent.proposedStartTime}`);
@@ -173,10 +189,10 @@ class AppointmentService {
           intent.proposedStartTime,
           intent.proposedEndTime,
           'conflict',
-          `Sebep: ${conflictCheck.reason}. AI tarafından alternatif saatler iletildi.`
+          `Sebep: ${conflictCheck.reason}. Alternatif saatler iletildi.`
         );
 
-        console.log(`⚠️ [APPOINTMENT AI] Çakışma tespit edildi (${conflictCheck.reason}). AI alternatif saat önerisi gönderiyor...`);
+        console.log(`⚠️ [APPOINTMENT AI] Çakışma tespit edildi (${conflictCheck.reason}). Alternatif saat önerisi gönderiliyor...`);
 
         const availableSlots = this.findAvailableSlots(intent.proposedStartTime, 3);
         if (lead.email) {
@@ -195,7 +211,7 @@ class AppointmentService {
         }
       }
     } catch (err) {
-      console.error('❌ [APPOINTMENT AI] İşlem hatası:', err.message);
+      console.error('❌ [AUTO-REPLY AI] İşlem hatası:', err.message);
     }
   }
 }

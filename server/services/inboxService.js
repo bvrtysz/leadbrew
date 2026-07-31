@@ -68,9 +68,23 @@ class InboxService {
             // Skip emails sent FROM our own address
             if (fromAddr === user.toLowerCase()) continue;
 
-            // Check if sender is a known lead
-            const lead = leadEmailMap[fromAddr];
-            if (!lead) continue;
+            // Check if sender is a known lead, or auto-create lead if unknown
+            let lead = leadEmailMap[fromAddr];
+            if (!lead) {
+              const newLeadId = uuid();
+              const nameFromAddr = (parsed.from?.value?.[0]?.name || fromAddr.split('@')[0])
+                .replace(/[\._]/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+              
+              db.prepare(`
+                INSERT INTO leads (id, name, email, company, position, industry, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+              `).run(newLeadId, nameFromAddr, fromAddr, 'Müşteri', 'Yetkili', 'Diğer', 'Gelen e-posta ile otomatik eklendi');
+              
+              lead = { id: newLeadId, name: nameFromAddr, email: fromAddr, company: 'Müşteri', position: 'Yetkili' };
+              leadEmailMap[fromAddr] = lead;
+              console.log(`✨ [INBOX] Yeni lead otomatik oluşturuldu: ${nameFromAddr} (${fromAddr})`);
+            }
 
             // Check if we already recorded this message (by matching direction+message substring)
             const existing = db.prepare('SELECT * FROM conversations WHERE lead_id = ? AND direction = ? ORDER BY created_at DESC').all(lead.id, 'inbound');
@@ -89,12 +103,12 @@ class InboxService {
             // Update lead status
             db.prepare("UPDATE leads SET status = 'replied' WHERE id = ?").run(lead.id);
 
-            console.log(`📥 [INBOX] Yeni gelen yanit: ${fromAddr} (Lead: ${lead.name}) - Konu: ${subject}`);
+            console.log(`📥 [INBOX] Yeni gelen yanıt: ${fromAddr} (Lead: ${lead.name}) - Konu: ${subject}`);
             newMessages++;
 
-            // Process for AI appointment detection & conflict checking
+            // Process for AI appointment detection or smart human auto-reply
             const appointmentService = require('./appointmentService');
-            appointmentService.processIncomingEmail(lead, textBody);
+            await appointmentService.processIncomingEmail(lead, textBody);
           } catch (parseErr) {
             console.error('[INBOX] Mesaj parse hatasi:', parseErr.message);
           }

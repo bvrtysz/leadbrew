@@ -1,47 +1,48 @@
 class AiService {
   async generateEmail(lead, type = 'initial', context = '') {
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     let subject = '';
     let body = '';
-    const firstName = (lead.name || 'Yetkili').split(' ')[0];
+    const name = lead.name ? lead.name.split(' ')[0] : 'Bey/Hanım';
+    const salutation = `Merhaba ${name},`;
     
     if (type === 'initial') {
       if (lead.industry === 'Kafe' || lead.industry === 'Restoran' || lead.industry === 'Otelcilik') {
-        subject = `${lead.company || 'İşletmeniz'} misafirleri için premium çay ve kahve deneyimi`;
-        body = `Sayın ${firstName} Bey/Hanım,\n\n${lead.company || 'İşletmeniz'} kalitesini yakından takip ediyoruz. İçecek kalitesinin misafir memnuniyetindeki önemini bildiğinizi tahmin ediyorum.\n\nÖzenle seçilmiş yöresel kahve çekirdeklerimiz ve özel harman çay çeşitlerimizle işletmenize özel toptan çözümler sunuyoruz.\n\nÜrünlerimizin tadımı ve fiyat avantajlarımız hakkında kısa bir görüşme yapabilir miyiz?\n\nSaygılarımla,`;
+        subject = `${lead.company || 'İşletmeniz'} için özel çay ve kahve seçkimiz`;
+        body = `${salutation}\n\n${lead.company || 'İşletmenizde'} misafirlerinize sunduğunuz kaliteyi yakından takip ediyoruz. İçecek menünüze değer katacak taze kavrulmuş yöresel kahve çekirdeklerimiz ve özel harman çaylarımızla ilgili size özel bir tadım paketi hazırlamak istedik.\n\nKısa bir telefon görüşmesi veya yüz yüze tadım için uygun bir zamanınızı öğrenebilir miyim?\n\nİyi çalışmalar,\nBaver`;
       } else {
-        subject = `${lead.company || 'Şirketiniz'} çalışanları için kaliteli çay ve kahve çözümleri`;
-        body = `Sayın ${firstName} Bey/Hanım,\n\n${lead.company || 'Şirketiniz'} ekibinin günlük enerjisini tazelemek ve ofis içi memnuniyeti artırmak ister misiniz?\n\nKurumsal ofisler için özel olarak hazırladığımız taze kavrum kahve ve çay abonelik paketlerimizle tanışmanızı isteriz.\n\nSize özel teklifimizi görüşmek için ne zaman müsaitsiniz?\n\nSaygılarımla,`;
+        subject = `${lead.company || 'Şirketiniz'} ekibi için taze kahve çözümleri`;
+        body = `${salutation}\n\n${lead.company || 'Şirketiniz'} ekibine motivasyon katacak taze kavrulmuş kahve ve premium çay tedariğimiz hakkında bilgi vermek istedim.\n\nOfisinize özel toptan fiyat avantajlarımızı ve ücretsiz tadım setimizi paylaşmak isteriz. Kısa bir görüşme için ne zaman müsaitsiniz?\n\nSelamlar,\nBaver`;
       }
     } else if (type.startsWith('follow_up')) {
-      subject = `Yeniden: ${lead.company || 'İşletmeniz'} için özel çay ve kahve çözümleri`;
-      body = `Merhaba ${firstName} Bey/Hanım,\n\nGeçtiğimiz günlerde size sunduğumuz çözümlerle ilgili ulaşmıştım.\n\nSadece ürün kalitemizi denemeniz için ücretsiz tadım numune seti göndermek isteriz. Adresinizi paylaşırsanız hemen kargolayabiliriz.\n\nİyi çalışmalar dilerim,`;
+      subject = `Re: ${lead.company || 'İşletmeniz'} için çay ve kahve çözümleri`;
+      body = `${salutation}\n\nGeçtiğimiz günlerde ilettiğim mesajla ilgili kısa bir hatırlatma yapmak istedim.\n\nÜrünlerimizin tazeliğini ve kalitesini doğrudan deneyimlemeniz adına adresinize ücretsiz bir numune seti kargolayabiliriz. İlgilenirseniz adresi iletmeniz yeterlidir.\n\nGörüşmek üzere,\nBaver`;
     }
     
     return { subject, body };
   }
 
   async generateReplyOptions(lead, lastMessage = '') {
-    await new Promise(resolve => setTimeout(resolve, 600));
-    const name = lead ? (lead.name || 'Yetkili').split(' ')[0] : 'Yetkili';
-    const company = lead ? (lead.company || 'Şirketiniz') : 'Şirketiniz';
+    await new Promise(resolve => setTimeout(resolve, 400));
+    const name = lead ? (lead.name || 'Bey/Hanım').split(' ')[0] : '';
+    const salutation = name ? `Merhaba ${name},` : 'Merhaba,';
 
     return [
       {
         tone: 'Kurumsal & Profesyonel',
         badge: 'badge-primary',
-        text: `Merhaba ${name} Bey/Hanım,\n\nGeri dönüşünüz için teşekkür ederiz. ${company} için hazırladığımız özel ürün kataloğumuzu ve toptan fiyat listemizi ekte sunabilirim.\n\nÖnümüzdeki hafta müsait olduğunuz bir gün detayları görüşmek isteriz.\n\nSaygılarımla,`
+        text: `${salutation}\n\nİlginiz ve geri dönüşünüz için teşekkür ederim. Şirketimiz bünyesindeki taze kavrum kahve çekirdekleri ve özel harman çay kataloğumuzu incelemeniz için paylaşmaktan memnuniyet duyarım.\n\nÖnümüzdeki günlerde kısa bir telefon görüşmesi ile detayları netleştirebiliriz.\n\nSaygılarımla,\nBaver`
       },
       {
         tone: 'Sıcak & Samimi',
         badge: 'badge-success',
-        text: `Harika haber ${name} Hanım/Bey! ☕\n\nİlginiz için çok teşekkürler. Size özel kavurduğumuz taze kahve numune paketimizi hemen kargoya vermek isteriz. Kargoyu nereye yönlendirelim?\n\nKeyifli çalışmalar!`
+        text: `Harika haber ${name}! ☕\n\nGeri dönüşün için çok teşekkürler. İçecek menünüz için hazırladığımız özel tadım paketini hemen kargoya vermek isterim. Kargo adresini paylaşabilir misin?\n\nKeyifli çalışmalar,\nBaver`
       },
       {
         tone: 'Teklif & İndirim Odaklı',
         badge: 'badge-warning',
-        text: `Merhaba ${name} Bey/Hanım,\n\n${company} işletmenize özel ilk siparişe özel %15 indirimli toptan fiyat teklifimizi hazırladık.\n\nKısa bir telefon görüşmesi ile detayları aktarmak isterim, ne zaman arayabiliriz?\n\nİyi günler!`
+        text: `${salutation}\n\nDetaylı ilginiz için teşekkürler! ${lead?.company || 'İşletmenize'} özel ilk toptan siparişte geçerli %15 indirimli fiyat tablomuzu hazırladım.\n\nNe zaman müsaitsiniz, 5 dakikalık bir görüşmede detayları aktarayım?\n\nSelamlar,\nBaver`
       }
     ];
   }
@@ -55,7 +56,6 @@ class AiService {
 
     if (!hasKeyword) return { isAppointment: false };
 
-    // Extract proposed time/date using standard regex patterns or fallbacks
     const dateMatch = text.match(/(\d{1,2})[\.\/-](\d{1,2})[\.\/-](\d{4})/);
     const timeMatch = text.match(/(\d{1,2})[:\.](\d{2})/);
 
@@ -78,10 +78,10 @@ class AiService {
       const year = parseInt(dateMatch[3]);
       targetDate = new Date(year, month, day);
     } else {
-      targetDate.setDate(targetDate.getDate() + 1); // Default to tomorrow
+      targetDate.setDate(targetDate.getDate() + 1);
     }
 
-    let hour = 14; // Default to 14:00 if not specified
+    let hour = 14;
     let minute = 0;
     if (timeMatch) {
       hour = parseInt(timeMatch[1]);
@@ -94,7 +94,7 @@ class AiService {
     targetDate.setHours(hour, minute, 0, 0);
 
     const startTimeStr = targetDate.toISOString().replace('T', ' ').substring(0, 16);
-    const endDate = new Date(targetDate.getTime() + 30 * 60 * 1000); // 30 min duration
+    const endDate = new Date(targetDate.getTime() + 30 * 60 * 1000);
     const endTimeStr = endDate.toISOString().replace('T', ' ').substring(0, 16);
 
     return {
@@ -106,19 +106,46 @@ class AiService {
   }
 
   async generateConflictEmail(leadName, companyName, requestedTime, availableOptions) {
-    const firstName = (leadName || 'Yetkili').split(' ')[0];
+    const firstName = leadName ? leadName.split(' ')[0] : '';
+    const salutation = firstName ? `Merhaba ${firstName},` : 'Merhaba,';
     const optionsFormatted = availableOptions.map(opt => `• ${opt}`).join('\n');
 
-    const subject = `Re: Toplantı Randevusu - Alternatif Saat Önerisi`;
-    const body = `Sayın ${firstName} Bey/Hanım,\n\n${companyName || 'Şirketiniz'} ile yapacağımız görüşme talebiniz için teşekkür ederiz.\n\nBelirttiğiniz ${requestedTime} zaman diliminde takvimimde önceden planlanmış bir randevum/meşguliyetim bulunmaktadır.\n\nSize daha iyi hizmet verebilmek adına aşağıdaki alternatif zaman dilimlerinden biri sizin için uygun olur mu?\n\n${optionsFormatted}\n\nUygun olduğunuz saati iletirseniz randevunuzu derhal onaylayabilirim.\n\nİyi çalışmalar dilerim,\nConbella Ekibi`;
+    const subject = `Re: Toplantı saatimiz hakkında`;
+    const body = `${salutation}\n\nMesajınız için teşekkür ederim. Belirttiğiniz ${requestedTime} saat diliminde önceden planlanmış bir görüşmem bulunuyor.\n\nSizin için de uygunsa aşağıdaki zaman dilimlerinden birinde görüşmeyi gerçekleştirebiliriz:\n\n${optionsFormatted}\n\nHangi saat size daha uygun olursa iletmeniz yeterlidir, hemen takvimime ekleyeceğim.\n\nSelamlar,\nBaver`;
 
     return { subject, body };
   }
 
   async generateConfirmationEmail(leadName, companyName, confirmedTime) {
-    const firstName = (leadName || 'Yetkili').split(' ')[0];
-    const subject = `Re: Randevunuz Onaylandı - ${confirmedTime}`;
-    const body = `Sayın ${firstName} Bey/Hanım,\n\n${companyName || 'Şirketiniz'} ile görüşme randevunuz ${confirmedTime} tarihi için başarıyla takvimimize eklenmiş ve onaylanmıştır.\n\nToplantı saatinde görüşmek üzere, iyi çalışmalar dileriz.\n\nSaygılarımızla,\nConbella Ekibi`;
+    const firstName = leadName ? leadName.split(' ')[0] : '';
+    const salutation = firstName ? `Merhaba ${firstName},` : 'Merhaba,';
+    const subject = `Re: Randevu Onayı - ${confirmedTime}`;
+    const body = `${salutation}\n\nToplantı talebiniz için teşekkür ederim. ${confirmedTime} tarihindeki görüşmemizi takvime ekledim ve onayladım.\n\nBelirtilen saatte görüşmek üzere,\n\nİyi çalışmalar,\nBaver`;
+
+    return { subject, body };
+  }
+
+  async generateSmartHumanReply(lead, incomingText = '') {
+    const name = lead.name ? lead.name.split(' ')[0] : '';
+    const salutation = name ? `Merhaba ${name},` : 'Merhaba,';
+    const lower = incomingText.toLowerCase();
+
+    let subject = 'Re: Conbella İletişim';
+    let body = '';
+
+    if (lower.includes('fiyat') || lower.includes('katalog') || lower.includes('ücret') || lower.includes('maliyet') || lower.includes('toptan')) {
+      subject = 'Re: Ürün kataloğumuz ve toptan fiyat listesi';
+      body = `${salutation}\n\nDetaylı ilginiz için teşekkürler! İşletmenize özel taze kavrum kahve çekirdeklerimiz ve ithal çay menümüz için özel indirimli fiyat tablomuzu hazırladık.\n\nDilerseniz ürün kalitemizi doğrudan test etmeniz için ücretsiz numune paketimizi adresinize yönlendirebilirim. Kargo adresinizi iletmeniz yeterlidir.\n\nSelamlar,\nBaver`;
+    } else if (lower.includes('numune') || lower.includes('tadım') || lower.includes('örnek') || lower.includes('adres')) {
+      subject = 'Re: Numune paketi gönderimi';
+      body = `${salutation}\n\nHarika! Özel kavurduğumuz espresso ve filtre kahve numunelerimiz ile organik çay seçkimizi hemen kargoya hazırlıyorum.\n\nKargonuz yola çıktığında bilgi ileteceğim. Başka bir sorunuz olursa bana buradan her zaman ulaşabilirsiniz.\n\nKeyifli çalışmalar,\nBaver`;
+    } else if (lower.includes('teşekkür') || lower.includes('tamam') || lower.includes('olur') || lower.includes('anlaştık')) {
+      subject = 'Re: İletişimimiz hakkında';
+      body = `${salutation}\n\nBen teşekkür ederim! Süreci yakından takip ediyor olacağım. İstediğiniz zaman bana bu mail adresi üzerinden ulaşabilirsiniz.\n\nİyi çalışmalar dilerim,\nBaver`;
+    } else {
+      subject = 'Re: Geri dönüşünüz hakkında';
+      body = `${salutation}\n\nMesajınız ve geri dönüşünüz için çok teşekkür ederim. Talebinizi aldım ve memnuniyetle yardımcı olmak isterim.\n\nKonuyu daha detaylı netleştirmek için ne zaman kısa bir görüşme yapabiliriz?\n\nSaygılarımla,\nBaver`;
+    }
 
     return { subject, body };
   }
