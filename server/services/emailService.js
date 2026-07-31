@@ -189,8 +189,8 @@ class EmailService {
       const uuid = require('uuid').v4;
       db.prepare(`
         INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
-        VALUES (?, ?, ?, ?, 'outbound', CURRENT_TIMESTAMP)
-      `).run(uuid(), emailData.lead_id, emailData.id, emailData.body);
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(uuid(), emailData.lead_id, emailData.id, emailData.body, 'outbound');
     }
 
     return {
@@ -229,8 +229,8 @@ class EmailService {
 
     db.prepare(`
       INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
-      VALUES (?, ?, ?, ?, 'inbound', CURRENT_TIMESTAMP)
-    `).run(uuid(), leadId || null, email ? email.id : null, randomReply);
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(uuid(), leadId || null, email ? email.id : null, randomReply, 'inbound');
 
     return { success: true, message: 'Müşteri yanıtı simüle edildi' };
   }

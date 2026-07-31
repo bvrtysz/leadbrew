@@ -111,8 +111,8 @@ router.post('/webhook/inbound', (req, res) => {
       const newId = uuid();
       db.prepare(`
         INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
-        VALUES (?, ?, NULL, ?, 'inbound', CURRENT_TIMESTAMP)
-      `).run(newId, lead.id, messageText);
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(newId, lead.id, null, messageText, 'inbound');
 
       console.log(`📥 [INBOUND WEBHOOK] Gelen yanıt kaydedildi: ${senderEmail} (Lead: ${lead.name})`);
       return res.json({ success: true, message: 'Gelen yanıt kaydedildi', lead_id: lead.id });
@@ -187,8 +187,8 @@ router.post('/simulate-lead-reply/:leadId', (req, res) => {
       const randomReply = sampleReplies[Math.floor(Math.random() * sampleReplies.length)];
       db.prepare(`
         INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
-        VALUES (?, ?, NULL, ?, 'inbound', CURRENT_TIMESTAMP)
-      `).run(uuid(), leadId, randomReply);
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).run(uuid(), leadId, null, randomReply, 'inbound');
     }
     res.json({ success: true, message: 'Müşteri yanıtı simüle edildi' });
   } catch (error) {

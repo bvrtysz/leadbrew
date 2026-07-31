@@ -83,8 +83,8 @@ class InboxService {
             const convId = uuid();
             db.prepare(`
               INSERT INTO conversations (id, lead_id, email_id, message, direction, created_at)
-              VALUES (?, ?, NULL, ?, 'inbound', CURRENT_TIMESTAMP)
-            `).run(convId, lead.id, bodyPreview);
+              VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `).run(convId, lead.id, null, bodyPreview, 'inbound');
 
             // Update lead status
             db.prepare("UPDATE leads SET status = 'replied' WHERE id = ?").run(lead.id);
