@@ -129,5 +129,15 @@ export const api = {
       if (!res.ok) throw new Error(json.error || 'API Error');
       return json;
     } catch(e) { console.error(e); throw e; }
+  },
+
+  // Inbox Check
+  checkInbox: async () => {
+    try {
+      const res = await fetch(`/api/inbox/check`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'API Error');
+      return json;
+    } catch(e) { console.error(e); throw e; }
   }
 };

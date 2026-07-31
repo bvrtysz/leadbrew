@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Send, Clock, CheckCircle2, Building, MoreVertical, Loader2, Sparkles, Bot, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Send, Clock, CheckCircle2, Building, MoreVertical, Loader2, Sparkles, Bot, RefreshCw, Inbox, Mail } from 'lucide-react';
 import { api } from '../utils/api';
 import './ConversationView.css';
 
@@ -16,9 +16,18 @@ const ConversationView = () => {
   const [aiOptions, setAiOptions] = useState(null);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [checkingInbox, setCheckingInbox] = useState(false);
+  const [inboxStatus, setInboxStatus] = useState(null);
+  const autoRefreshRef = useRef(null);
 
   useEffect(() => {
     fetchConversations();
+    // Auto-refresh every 60 seconds
+    autoRefreshRef.current = setInterval(() => {
+      fetchConversations();
+      if (activeId) fetchThread(activeId);
+    }, 60000);
+    return () => clearInterval(autoRefreshRef.current);
   }, []);
 
   useEffect(() => {
@@ -107,6 +116,25 @@ const ConversationView = () => {
     }
   };
 
+  const handleCheckInbox = async () => {
+    setCheckingInbox(true);
+    setInboxStatus(null);
+    try {
+      const result = await api.checkInbox();
+      setInboxStatus(result);
+      // Refresh conversations and thread after inbox check
+      await fetchConversations();
+      if (activeId) await fetchThread(activeId);
+      // Auto-clear status after 5 seconds
+      setTimeout(() => setInboxStatus(null), 5000);
+    } catch (err) {
+      setInboxStatus({ success: false, message: err.message });
+      setTimeout(() => setInboxStatus(null), 5000);
+    } finally {
+      setCheckingInbox(false);
+    }
+  };
+
   const handleStatusChange = async (e) => {
     const newStatus = e.target.value;
     try {
@@ -144,7 +172,26 @@ const ConversationView = () => {
         {/* Sidebar: Conversation List */}
         <div className="chat-sidebar border-r flex flex-col w-1/3" style={{borderColor: 'var(--glass-border)'}}>
           <div className="p-4 border-b" style={{borderColor: 'var(--glass-border)'}}>
-            <h2 className="text-h3 mb-4">Konuşmalar</h2>
+            <div className="flex-between">
+              <h2 className="text-h3 mb-0">Konuşmalar</h2>
+              <button 
+                className="btn btn-primary text-xs flex items-center gap-1 py-1 px-3"
+                onClick={handleCheckInbox}
+                disabled={checkingInbox}
+                title="Gmail gelen kutusunu kontrol et"
+                style={{fontSize: '0.7rem'}}
+              >
+                {checkingInbox ? <Loader2 size={14} className="spin" /> : <Inbox size={14} />}
+                {checkingInbox ? 'Kontrol...' : '📥 Gelen Kutusu'}
+              </button>
+            </div>
+            {inboxStatus && (
+              <div className={`text-xs mt-2 p-2 rounded-lg ${inboxStatus.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+                   style={{background: inboxStatus.success ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: inboxStatus.success ? '#4ade80' : '#f87171', border: `1px solid ${inboxStatus.success ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`}}
+              >
+                {inboxStatus.success ? '✅' : '❌'} {inboxStatus.message}
+              </div>
+            )}
             <div className="search-box relative">
               <Search size={16} className="text-muted absolute left-3 top-3" style={{top: 12}} />
               <input 

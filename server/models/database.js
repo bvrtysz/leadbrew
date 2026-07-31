@@ -209,6 +209,9 @@ class PureDb {
       if (params && params[0]) {
         result = result.filter(c => c.lead_id === params[0] || c.email_id === params[0]);
       }
+      if (params && params[1]) {
+        result = result.filter(c => c.direction === params[1]);
+      }
       result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
       return result;
     }

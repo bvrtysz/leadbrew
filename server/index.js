@@ -20,6 +20,18 @@ app.use('/api/emails', emailsRouter);
 app.use('/api/campaigns', campaignsRouter);
 app.use('/api/stats', statsRouter);
 
+// Inbox check endpoint
+const inboxService = require('./services/inboxService');
+app.post('/api/inbox/check', async (req, res) => {
+  try {
+    const result = await inboxService.checkInbox();
+    res.json(result);
+  } catch (error) {
+    console.error('Inbox kontrol hatasi:', error);
+    res.status(500).json({ error: 'Gelen kutusu kontrol edilemedi' });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Conbella API calisiyor', mode: process.env.EMAIL_MODE || 'SIMULATION' });
 });
@@ -44,6 +56,9 @@ const { initDb } = require('./models/database');
 initDb().then(() => {
   const followUpService = require('./services/followUpService');
   followUpService.start();
+
+  // Start periodic Gmail inbox checking (every 5 minutes)
+  inboxService.startPeriodicCheck(5);
 
   app.listen(port, '0.0.0.0', () => {
     console.log(`Conbella Sunucu 0.0.0.0:${port} üzerinde çalışıyor`);
